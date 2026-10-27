@@ -36,18 +36,10 @@ shape = squircle()
 face = Image.new('RGB', (size, size), (251, 250, 246))
 draw = ImageDraw.Draw(face)
 u = size / 824
-band = int(168 * u)
-draw.rectangle([0, 0, size, band], fill=(166, 25, 46))   # O'Reilly-style title band
-font = ImageFont.truetype('/System/Library/Fonts/Supplemental/Songti.ttc', int(104 * u), index=1)
-text = '拾刻'
-w = draw.textlength(text, font=font)
-draw.text(((size - w) / 2, band / 2 + 6 * u), text, font=font, fill=(255, 255, 255), anchor='lm')
-draw.line([(60 * u, band + 18 * u), (size - 60 * u, band + 18 * u)], fill=(166, 25, 46), width=max(2, int(3 * u)))
-
-h = int(size - band - 80 * u)
+h = int(size * 0.80)
 aw = int(animal.width * h / animal.height)
 art = animal.resize((aw, h), Image.LANCZOS)
-face.paste(ImageOps.colorize(art, (24, 22, 20), (251, 250, 246)), ((size - aw) // 2, band + int(34 * u)))
+face.paste(ImageOps.colorize(art, (24, 22, 20), (251, 250, 246)), ((size - aw) // 2, (size - h) // 2 + int(10 * u)))
 
 if size == 1024:
     face.save(f'{D}/layer-1024.png')
