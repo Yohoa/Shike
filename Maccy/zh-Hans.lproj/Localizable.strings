@@ -12,3 +12,216 @@
 "clear_alert_comment" = "无法撤消此操作。";
 "clear_alert_cancel" = "取消";
 "clear_alert_confirm" = "清除";
+
+/* Raphael local build */
+"Multi-select" = "多选";
+"Done" = "完成";
+"Select item" = "选择记录";
+"Deselect item" = "取消选择";
+"Drag 1 item" = "拖出 1 条记录";
+"Drag %ld items" = "拖出 %ld 条记录";
+"Drag selected text and images. Text-only selections are joined with newlines." = "拖出选中的文字和图片；纯文字按选中顺序换行合并。";
+"This selection cannot be dragged" = "此选择暂不支持拖出";
+"⌘ click · Shift range" = "⌘ 点选 · Shift 连选";
+"Raphael local build" = "Raphael 本地修复版";
+"Memory fixes · Text and image drag" = "内存修复 · 图文多选拖出";
+"Based on Maccy 2.7.1" = "基于官方 Maccy 2.7.1";
+"Maccy · Raphael’s build" = "Maccy · Raphael 修复版";
+"Local Fix %d" = "本地修复 %d";
+
+"Copy combined" = "复制组合内容";
+"Memory fixes · Combined text and images" = "内存修复 · 图文组合粘贴";
+
+"Copy text" = "复制文字";
+"Drop mode" = "拖放模式";
+"Combined" = "图文组合";
+"Chat attachments" = "聊天附件";
+"Drag images, then ⌘V for text" = "拖出图片，再按 ⌘V 粘贴文字";
+
+"Shift ↑/↓ select · Enter paste · ⇧Enter text" = "Shift ↑/↓ 多选 · Enter 粘贴 · ⇧Enter 纯文本";
+
+"Automatic paste: allowed" = "自动粘贴：已授权";
+"Automatic paste: needs Accessibility permission" = "自动粘贴：需要辅助功能授权";
+
+"Image Tools" = "图片工具";
+
+"Optional screenshot and image tools" = "可选截图与图片工具";
+
+"Enable screenshot and image tools" = "启用截图与图片工具";
+
+"Capture, annotate, pin, recognize text or QR codes, combine images and create before/after GIFs. Processing stays on this Mac." = "截图、标注、贴图、识别文字或二维码、拼接图片和制作前后对比 GIF。处理均在本机完成。";
+
+"Use the image menu or right-click an image. Select multiple images in order to combine them." = "从图片菜单或图片右键菜单操作；按顺序多选图片可进行拼接。";
+
+"Screenshot" = "截图";
+
+"Screenshot + OCR" = "截图并识别文字";
+
+"Capture region…" = "区域截图…";
+
+"Capture window…" = "窗口截图…";
+
+"Capture" = "截图";
+
+"Annotate…" = "标注…";
+
+"Pin to Screen" = "贴到屏幕";
+
+"Run OCR" = "识别文字";
+
+"Scan QR Code" = "识别二维码";
+
+"Combine with…" = "与其他图片拼接…";
+
+"Combine vertically…" = "纵向拼接…";
+
+"Before / After GIF…" = "前后对比 GIF…";
+
+"Choose images to combine with the selected image." = "选择要与当前图片拼接的图片。";
+
+"Select exactly two images for a before/after GIF." = "制作前后对比 GIF 需要恰好两张图片。";
+
+"Close an image tools window before opening another." = "请先关闭一个图片工具窗口，再打开新窗口。";
+
+"Recognized text is copied. Review it before pasting." = "识别结果已复制，粘贴前请核对。";
+
+"Save to history" = "保存到历史记录";
+
+"Opacity" = "不透明度";
+
+"Tool" = "工具";
+
+"Color" = "颜色";
+
+"Width" = "宽度";
+
+"Height" = "高度";
+
+"Pen" = "画笔";
+
+"Arrow" = "箭头";
+
+"Rectangle" = "矩形";
+
+"Ellipse" = "椭圆";
+
+"Highlighter" = "高亮笔";
+
+"Text" = "文字";
+
+"Numbered step" = "步骤编号";
+
+"Redact" = "遮盖";
+
+"Crop" = "裁剪";
+
+"Undo" = "撤销";
+
+"Apply crop" = "应用裁剪";
+
+"Text to place on the image" = "输入要放到图片上的文字";
+
+"Rotate 90°" = "旋转 90°";
+
+"Flip horizontally" = "水平翻转";
+
+"Grayscale" = "灰度";
+
+"Resize" = "调整尺寸";
+
+"Keep aspect ratio" = "保持宽高比";
+
+"Apply" = "应用";
+
+"Save…" = "另存为…";
+
+"Copy image" = "复制图片";
+
+"Drag on the image to annotate. Changes create a new image." = "在图片上拖动进行标注，修改会生成新图片。";
+
+"Choose Crop and drag a rectangle on the image first." = "请先选择裁剪工具，并在图片上拖出矩形。";
+
+"Drag to capture · Esc to cancel" = "拖动选择截图区域 · Esc 取消";
+
+"The image could not be opened." = "无法打开这张图片。";
+
+"The result is too large. Use smaller images (maximum 32 megapixels)." = "结果过大，请使用较小的图片（上限 3200 万像素）。";
+
+"No text was found in this image." = "未在图片中找到文字。";
+
+"No QR code was found in this image." = "未在图片中找到二维码。";
+
+"The image could not be exported." = "无法导出图片。";
+
+"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "请在系统设置 → 隐私与安全性 → 屏幕与系统音频录制中允许 Maccy Fixed，然后重试。";
+
+"Cancel" = "取消";
+
+"Notch" = "刘海";
+
+"Maccy Notch" = "Maccy 刘海";
+
+"Enable notch shelf" = "启用刘海剪贴板";
+
+"A small clipboard shelf at the top of your screen. Click to expand, drag files in, or drag clipboard items out. Displays without a camera notch get a floating pill." = "屏幕顶部的小剪贴板：点击展开、拖入文件，或把剪贴板内容拖出去。没有刘海的屏幕会显示悬浮胶囊。";
+
+"Display" = "显示器";
+
+"Automatic (prefer camera notch)" = "自动（优先刘海屏）";
+
+"Open notch shelf" = "打开刘海剪贴板";
+
+"Show notch shelf" = "显示刘海剪贴板";
+
+"Hide notch" = "隐藏刘海";
+
+"Battery updates use system notifications. Turning this off removes the window, shortcut and observers. No extra permissions are needed for the shelf." = "电量通过系统通知更新。关闭模块会移除窗口、快捷键和监听。剪贴板架无需额外权限。";
+
+"Click to open, or drag files here" = "点击展开，或将文件拖到这里";
+
+"Collapse notch" = "收起刘海";
+
+"Connected to power" = "已接通电源";
+
+"On battery" = "正在使用电池";
+
+"Drop to add to Maccy" = "松开以添加到 Maccy";
+
+"Recent clipboard" = "最近剪贴板";
+
+"Open Maccy" = "打开 Maccy";
+
+"Copy something or drop files here to begin." = "复制内容，或把文件拖到这里即可开始。";
+
+"Copy" = "复制";
+
+"Paste" = "粘贴";
+
+"Paste plain text" = "粘贴纯文本";
+
+"Click to copy · ⌘ or ⇧ click for multiple · drag to sort or out · force click to preview" = "点击复制 · ⌘ 或 ⇧ 点击多选 · 拖动排序或拖出 · 用力按预览";
+
+"Image" = "图片";
+
+"Added to Maccy" = "已添加到 Maccy";
+
+"Copied" = "已复制";
+
+"This selection cannot be combined. Copy files one at a time." = "这些内容无法合并，请逐条复制文件。";
+
+"Drop at most 100 files at once." = "一次最多拖入 100 个文件。";
+
+"Optional notch clipboard shelf" = "可选刘海剪贴板";
+
+"Click to select · Enter to paste · use Image Tools for actions" = "点击选中 · Enter 粘贴 · 用图片工具执行操作";
+"Preview" = "预览";
+"Pin" = "固定";
+"Unpin" = "取消固定";
+"Show in Finder" = "在访达中显示";
+"Delete" = "删除";
+"Delete Selected" = "删除所选";
+"OCR and QR results" = "OCR 与二维码结果";
+"Copy to clipboard" = "复制到剪贴板";
+"Copy and show in a window" = "复制并在窗口中显示";
+"Text copied (%d characters)" = "已复制文字（%d 个字符）";
+"Show on all displays" = "在所有显示器上显示";

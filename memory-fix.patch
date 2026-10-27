@@ -1,0 +1,1360 @@
+--- a/Maccy/About.swift
++++ b/Maccy/About.swift
+@@ -25,6 +25,16 @@
+   private var credits: NSMutableAttributedString {
+     let credits = NSMutableAttributedString(string: "",
+                                             attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor])
++    credits.append(NSAttributedString(
++      string: NSLocalizedString("Raphael local build", comment: "About build") + " · 2026-10-21\n"
++        + NSLocalizedString("Memory fixes · Combined text and images", comment: "About features") + "\n"
++        + NSLocalizedString("Based on Maccy 2.7.1", comment: "About base version") + "\n\n",
++      attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor]
++    ))
++    credits.append(NSAttributedString(
++      string: NSLocalizedString(Accessibility.allowed ? "Automatic paste: allowed" : "Automatic paste: needs Accessibility permission", comment: "Paste access status") + "\n\n",
++      attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor]
++    ))
+     credits.append(links)
+     credits.append(NSAttributedString(string: "\n\n"))
+     credits.append(kossCredits)
+@@ -37,6 +47,10 @@
+   @objc
+   func openAbout(_ sender: NSMenuItem?) {
+     NSApp.activate(ignoringOtherApps: true)
+-    NSApp.orderFrontStandardAboutPanel(options: [NSApplication.AboutPanelOptionKey.credits: credits])
++    NSApp.orderFrontStandardAboutPanel(options: [
++      .applicationName: NSLocalizedString("Maccy · Raphael’s build", comment: "About title"),
++      .applicationVersion: "2.7.1 · " + String(format: NSLocalizedString("Local Fix %d", comment: "Local build version"), 6),
++      .credits: credits
++    ])
+   }
+ }
+--- a/Maccy/Accessibility.swift
++++ b/Maccy/Accessibility.swift
+@@ -1,11 +1,12 @@
+ import AppKit
+ 
+ struct Accessibility {
+-  private static var allowed: Bool { AXIsProcessTrustedWithOptions(nil) }
++  // Pasting posts keyboard events; it does not inspect other apps' AX trees.
++  // AXIsProcessTrusted can be false in a sandbox despite PostEvent consent.
++  static var allowed: Bool { CGPreflightPostEventAccess() }
+ 
+-  static func check() {
+-    guard !allowed else {
+-      return
+-    }
++  @discardableResult
++  static func check() -> Bool {
++    allowed || CGRequestPostEventAccess()
+   }
+ }
+--- a/Maccy/Clipboard.swift
++++ b/Maccy/Clipboard.swift
+@@ -13,6 +13,7 @@
+   private let pasteboard = NSPasteboard.general
+ 
+   private var timer: Timer?
++  private var pasteTarget: NSRunningApplication?
+ 
+   private let dynamicTypePrefix = "dyn."
+   private let microsoftSourcePrefix = "com.microsoft.ole.source."
+@@ -72,6 +73,27 @@
+   }
+ 
+   @MainActor
++  func copyTextForDrag(_ text: String) {
++    let item = NSPasteboardItem()
++    item.setString(text, forType: .string)
++    item.setString("", forType: .fromMaccy)
++    pasteboard.clearContents()
++    pasteboard.writeObjects([item])
++    sync()
++  }
++
++  @MainActor
++  @discardableResult
++  func copyCombined(_ items: [HistoryItem], plainText: Bool = false) -> Bool {
++    guard let combined = HistoryDragPayload.clipboardItem(items: items, plainText: plainText) else { return false }
++    combined.setString("", forType: .fromMaccy)
++    pasteboard.clearContents()
++    guard pasteboard.writeObjects([combined]) else { return false }
++    sync()
++    return true
++  }
++
++  @MainActor
+   func copy(_ item: HistoryItem?, removeFormatting: Bool = false) {
+     guard let item else { return }
+ 
+@@ -110,9 +132,42 @@
+   }
+ 
+   // Based on https://github.com/Clipy/Clipy/blob/develop/Clipy/Sources/Services/PasteService.swift.
++  func capturePasteTarget() {
++    if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
++      pasteTarget = app
++    }
++  }
++
+   func paste() {
+-    Accessibility.check()
+-
++    guard Accessibility.check() else {
++      NSLog("Local paste blocked: Accessibility/PostEvent permission missing; contents remain copied")
++      return
++    }
++    let current = NSWorkspace.shared.frontmostApplication
++    let target = pasteTarget ?? current.flatMap {
++      $0.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : $0
++    }
++    guard let target, !target.isTerminated else {
++      NSLog("Local paste cancelled: no external target application")
++      return
++    }
++    Task { @MainActor in
++      if !target.isActive { target.activate(options: []) }
++      for _ in 0..<25 {
++        if target.isActive && NSApp.keyWindow == nil { break }
++        try? await Task.sleep(for: .milliseconds(20))
++      }
++      guard target.isActive, NSApp.keyWindow == nil else {
++        NSLog("Local paste cancelled: target focus was not restored")
++        return
++      }
++      try? await Task.sleep(for: .milliseconds(100))
++      guard target.isActive, NSApp.keyWindow == nil else { return }
++      self.postPasteShortcut()
++    }
++  }
++
++  private func postPasteShortcut() {
+     // Add flag that left/right modifier key has been pressed.
+     // See https://github.com/TermiT/Flycut/pull/18 for details.
+     let cmdFlag = CGEventFlags(rawValue: UInt64(KeyChord.pasteKeyModifiers.rawValue) | 0x000008)
+@@ -136,6 +191,7 @@
+     keyVUp?.flags = cmdFlag
+     keyVDown?.post(tap: .cgSessionEventTap)
+     keyVUp?.post(tap: .cgSessionEventTap)
++    NSLog("Local paste shortcut posted to the restored target")
+   }
+ 
+   func clear() {
+--- a/Maccy/Extensions/NSImage+Resized.swift
++++ b/Maccy/Extensions/NSImage+Resized.swift
+@@ -1,4 +1,4 @@
+-import AppKit.NSImage
++import AppKit
+ 
+ // Based on https://stackoverflow.com/questions/73062803/resizing-nsimage-keeping-aspect-ratio-reducing-the-image-size-while-trying-to-sc.
+ extension NSImage {
+@@ -24,13 +24,12 @@
+       return self
+     }
+ 
+-    return NSImage(size: newSize, flipped: false) { destRect in
+-      if let context = NSGraphicsContext.current {
+-        context.imageInterpolation = .high
+-        self.draw(in: destRect, from: NSRect.zero, operation: .copy, fraction: 1)
+-      }
+-
+-      return true
+-    }
++    // Rasterize now: a drawing-handler image would retain the full-size source.
++    let resized = NSImage(size: newSize)
++    resized.lockFocus()
++    defer { resized.unlockFocus() }
++    NSGraphicsContext.current?.imageInterpolation = .high
++    draw(in: NSRect(origin: .zero, size: newSize), from: .zero, operation: .copy, fraction: 1)
++    return resized
+   }
+ }
+--- a/Maccy/FloatingPanel.swift
++++ b/Maccy/FloatingPanel.swift
+@@ -74,6 +74,7 @@
+   }
+ 
+   func open(height: CGFloat, at popupPosition: PopupPosition = Defaults[.popupPosition]) {
++    Clipboard.shared.capturePasteTarget()
+     let size = Defaults[.windowSize]
+     let miniumHeight: CGFloat = AppState.shared.popup.minimumHeight
+     let finalWidth = min(frame.width, size.width)
+--- a/Maccy/MaccyApp.swift
++++ b/Maccy/MaccyApp.swift
+@@ -9,6 +9,18 @@
+   // scene that is always hidden.
+   @State private var hiddenMenu: Bool = false
+ 
++  init() {
++    if CommandLine.arguments.contains("--local-paste-diagnostics") {
++      let values: [String: Any] = ["accessibility": AXIsProcessTrusted(), "postEvents": CGPreflightPostEventAccess()]
++      let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
++      try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
++      if let data = try? JSONSerialization.data(withJSONObject: values) {
++        try? data.write(to: directory.appendingPathComponent("local-paste-diagnostics.json"), options: .atomic)
++      }
++      exit(0)
++    }
++  }
++
+   var body: some Scene {
+     MenuBarExtra("", isInserted: $hiddenMenu) {
+       EmptyView()
+--- a/Maccy/Models/HistoryItem.swift
++++ b/Maccy/Models/HistoryItem.swift
+@@ -234,6 +234,7 @@
+       return
+     }
+ 
++    defer { clearDecodedImageCache() }
+     let requestHandler = VNImageRequestHandler(cgImage: cgImage)
+     let request = VNRecognizeTextRequest(completionHandler: recognizeTextHandler)
+     request.recognitionLevel = .fast
+--- a/Maccy/Observables/AppState.swift
++++ b/Maccy/Observables/AppState.swift
+@@ -8,7 +8,7 @@
+ class AppState: Sendable {
+   static let shared = AppState(history: History.shared, footer: Footer())
+ 
+-  let multiSelectionEnabled = false
++  let multiSelectionEnabled = true
+ 
+   var appDelegate: AppDelegate?
+   var popup: Popup
+@@ -56,7 +56,14 @@
+     if !navigator.selection.isEmpty {
+       if navigator.isMultiSelectInProgress {
+         navigator.isManualMultiSelect = false
+-        history.startPasteStack(selection: &navigator.selection, flags: modifierFlags)
++        if Clipboard.shared.copyCombined(navigator.selection.items.map(\.item)) {
++          popup.close()
++          let action = HistoryItemAction(modifierFlags)
++          if action == .paste || action == .pasteWithoutFormatting
++            || (action == .unknown && Defaults[.pasteByDefault]) { Clipboard.shared.paste() }
++        } else {
++          NSSound.beep()
++        }
+       } else {
+         history.select(navigator.selection.first, flags: modifierFlags)
+       }
+@@ -71,6 +78,22 @@
+       Clipboard.shared.copyInMaccy(history.searchQuery)
+       history.searchQuery = ""
+     }
++  }
++
++  @MainActor
++  func pasteSelectionFromKeyboard(plainText: Bool) {
++    guard !navigator.selection.isEmpty else {
++      select(flags: plainText ? .shift : [])
++      return
++    }
++    guard Clipboard.shared.copyCombined(navigator.selection.items.map(\.item), plainText: plainText) else {
++      NSSound.beep()
++      return
++    }
++    navigator.isManualMultiSelect = false
++    history.interruptPasteStack()
++    popup.close()
++    Clipboard.shared.paste()
+   }
+ 
+   @MainActor
+--- a/Maccy/Observables/History.swift
++++ b/Maccy/Observables/History.swift
+@@ -160,6 +160,7 @@
+       if let removedItemIndex {
+         cleanup(all[removedItemIndex])
+       }
++      sessionLog.removeValues { $0 == existingHistoryItem }
+       Storage.shared.context.delete(existingHistoryItem)
+       if let removedItemIndex {
+         all.remove(at: removedItemIndex)
+--- a/Maccy/Observables/HistoryItemDecorator.swift
++++ b/Maccy/Observables/HistoryItemDecorator.swift
+@@ -39,7 +39,7 @@
+     return url.deletingPathExtension().lastPathComponent
+   }
+ 
+-  var hasImage: Bool { item.image != nil }
++  var hasImage: Bool { item.imageData != nil }
+ 
+   var previewImageGenerationTask: Task<(), Error>?
+   var thumbnailImageGenerationTask: Task<(), Error>?
+@@ -77,7 +77,7 @@
+ 
+   @MainActor
+   func ensureThumbnailImage() {
+-    guard item.image != nil else {
++    guard item.imageData != nil else {
+       return
+     }
+     guard thumbnailImage == nil else {
+@@ -87,13 +87,14 @@
+       return
+     }
+     thumbnailImageGenerationTask = Task { [weak self] in
++      guard !Task.isCancelled else { return }
+       self?.generateThumbnailImage()
+     }
+   }
+ 
+   @MainActor
+   func ensurePreviewImage() {
+-    guard item.image != nil else {
++    guard item.imageData != nil else {
+       return
+     }
+     guard previewImage == nil else {
+@@ -103,6 +104,7 @@
+       return
+     }
+     previewImageGenerationTask = Task { [weak self] in
++      guard !Task.isCancelled else { return }
+       self?.generatePreviewImage()
+     }
+   }
+@@ -120,10 +122,17 @@
+   @MainActor
+   func cleanupImages() {
+     thumbnailImageGenerationTask?.cancel()
++    thumbnailImageGenerationTask = nil
++    thumbnailImage?.recache()
++    thumbnailImage = nil
++    cleanupPreviewImage()
++  }
++
++  @MainActor
++  func cleanupPreviewImage() {
+     previewImageGenerationTask?.cancel()
+-    thumbnailImage?.recache()
++    previewImageGenerationTask = nil
+     previewImage?.recache()
+-    thumbnailImage = nil
+     previewImage = nil
+     item.clearDecodedImageCache()
+   }
+@@ -133,6 +142,7 @@
+     guard let image = item.image else {
+       return
+     }
++    defer { item.clearDecodedImageCache() }
+     thumbnailImage = image.resized(to: HistoryItemDecorator.thumbnailImageSize)
+   }
+ 
+@@ -141,6 +151,7 @@
+     guard let image = item.image else {
+       return
+     }
++    defer { item.clearDecodedImageCache() }
+     previewImage = image.resized(to: HistoryItemDecorator.previewImageSize)
+   }
+ 
+@@ -190,8 +201,9 @@
+   private func synchronizeItemPin() {
+     _ = withObservationTracking {
+       item.pin
+-    } onChange: {
+-      DispatchQueue.main.async {
++    } onChange: { [weak self] in
++      DispatchQueue.main.async { [weak self] in
++        guard let self else { return }
+         if let pin = self.item.pin {
+           self.shortcuts = KeyShortcut.create(character: pin)
+         }
+@@ -203,8 +215,9 @@
+   private func synchronizeItemTitle() {
+     _ = withObservationTracking {
+       item.title
+-    } onChange: {
+-      DispatchQueue.main.async {
++    } onChange: { [weak self] in
++      DispatchQueue.main.async { [weak self] in
++        guard let self else { return }
+         self.title = self.item.title
+         self.synchronizeItemTitle()
+       }
+--- a/Maccy/Observables/NavigationManager.swift
++++ b/Maccy/Observables/NavigationManager.swift
+@@ -55,6 +55,7 @@
+   var isKeyboardNavigating: Bool = true {
+     didSet {
+       if !isKeyboardNavigating && !isMultiSelectInProgress,
++         NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty,
+          let hoverSelection = hoverSelectionWhileKeyboardNavigating {
+         hoverSelectionWhileKeyboardNavigating = nil
+         select(id: hoverSelection)
+@@ -89,19 +90,17 @@
+     var newSelectionState = selection
+ 
+     if item.isSelected {
+-      if newSelectionState.count <= 1 {
+-        isManualMultiSelect = !isManualMultiSelect
+-      } else {
+-        newSelectionState.remove(item)
+-      }
++      newSelectionState.remove(item)
+     } else {
+       newSelectionState.add(item)
+     }
+ 
+     withTransaction(Transaction()) {
++      isManualMultiSelect = true
+       selection = newSelectionState
+-      leadHistoryItem = item
++      leadHistoryItem = newSelectionState.items.last
+       scrollTarget = leadSelection
++      footer.selectedItem = nil
+     }
+   }
+ 
+--- a/Maccy/Observables/Popup.swift
++++ b/Maccy/Observables/Popup.swift
+@@ -81,7 +81,11 @@
+     AppState.shared.appDelegate?.panel.open(height: height, at: popupPosition)
+   }
+ 
++  @MainActor
+   func reset() {
++    for item in AppState.shared.history.all {
++      item.cleanupPreviewImage()
++    }
+     state = .toggle
+     KeyboardShortcuts.enable(.popup)
+   }
+--- a/Maccy/Selection.swift
++++ b/Maccy/Selection.swift
+@@ -35,3 +35,255 @@
+     items.append(item)
+   }
+ }
++
++// A single plain-text representation makes a multi-record drop work in editors
++// that only accept one pasteboard item. Never substitute truncated titles/OCR.
++@MainActor
++struct HistoryDragPayload {
++  static func text(items: [HistoryItem]) -> String? {
++    guard !items.isEmpty else { return nil }
++    var values: [String] = []
++    for item in items {
++      guard item.imageData == nil, item.fileURLs.isEmpty else { return nil }
++      if let text = item.text {
++        values.append(text)
++      } else if let text = item.rtf?.string ?? item.html?.string {
++        values.append(text)
++      } else {
++        return nil
++      }
++    }
++    return values.joined(separator: "\n")
++  }
++
++  static func provider(items: [HistoryItem]) -> NSItemProvider? {
++    guard let contents = contents(items: items) else { return nil }
++    return provider(contents: contents)
++  }
++}
++
++import ImageIO
++import SwiftUI
++import UniformTypeIdentifiers
++
++struct HistoryDragContent {
++  var text: String?
++  var imageData: Data?
++  var typeIdentifier: String?
++  var fileExtension: String?
++  var rtfData: Data?
++  var htmlData: Data?
++}
++
++extension HistoryDragPayload {
++  static func contents(items: [HistoryItem]) -> [HistoryDragContent]? {
++    guard !items.isEmpty else { return nil }
++    var result: [HistoryDragContent] = []
++    for item in items {
++      if let data = item.imageData {
++        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
++              CGImageSourceGetCount(source) > 0,
++              let type = CGImageSourceGetType(source) as String? else { return nil }
++        if let text = item.text, !text.isEmpty { result.append(HistoryDragContent(text: text)) }
++        result.append(HistoryDragContent(imageData: data, typeIdentifier: type,
++                                         fileExtension: UTType(type)?.preferredFilenameExtension ?? "img"))
++      } else {
++        guard item.fileURLs.isEmpty, let value = item.text ?? item.rtf?.string ?? item.html?.string else { return nil }
++        result.append(HistoryDragContent(text: value, rtfData: item.rtfData, htmlData: item.htmlData))
++      }
++    }
++    return result
++  }
++
++  static func provider(contents: [HistoryDragContent]) -> NSItemProvider? {
++    guard !contents.isEmpty else { return nil }
++    if contents.allSatisfy({ $0.text != nil }) {
++      return NSItemProvider(object: contents.compactMap(\.text).joined(separator: "\n") as NSString)
++    }
++    if contents.count == 1, let image = contents.first,
++       let data = image.imageData, let type = image.typeIdentifier {
++      let provider = NSItemProvider(item: data as NSData, typeIdentifier: type)
++      provider.suggestedName = "Maccy.\(image.fileExtension ?? "img")"
++      return provider
++    }
++    guard let item = combinedItem(contents: contents), let data = item.data(forType: .rtfd) else { return nil }
++    let provider = NSItemProvider(item: data as NSData, typeIdentifier: NSPasteboard.PasteboardType.rtfd.rawValue)
++    if let html = item.data(forType: .html) {
++      provider.registerDataRepresentation(forTypeIdentifier: NSPasteboard.PasteboardType.html.rawValue, visibility: .all) {
++        completion in completion(html, nil); return nil
++      }
++    }
++    if let text = item.string(forType: .string) { provider.registerObject(text as NSString, visibility: .all) }
++    return provider
++  }
++
++  static func clipboardItem(items: [HistoryItem], plainText: Bool) -> NSPasteboardItem? {
++    if !plainText {
++      guard let contents = contents(items: items) else { return nil }
++      return combinedItem(contents: contents)
++    }
++    let values = items.compactMap { item -> String? in
++      if let text = item.text, !text.isEmpty { return text }
++      return item.rtf?.string ?? item.html?.string
++    }
++    guard values.contains(where: { !$0.isEmpty }) else { return nil }
++    let item = NSPasteboardItem()
++    item.setString(values.joined(separator: "\n"), forType: .string)
++    return item
++  }
++
++  static func combinedItem(contents: [HistoryDragContent]) -> NSPasteboardItem? {
++    guard !contents.isEmpty else { return nil }
++    let document = NSMutableAttributedString(string: "")
++    for (index, content) in contents.enumerated() {
++      if index > 0 { document.append(NSAttributedString(string: "\n")) }
++      if let text = content.text {
++        let rich = content.rtfData.flatMap { NSAttributedString(rtf: $0, documentAttributes: nil) }
++          ?? content.htmlData.flatMap { NSAttributedString(html: $0, documentAttributes: nil) }
++        document.append(rich ?? NSAttributedString(string: text))
++      } else if let data = content.imageData {
++        let attachment = NSTextAttachment()
++        let wrapper = FileWrapper(regularFileWithContents: data)
++        wrapper.preferredFilename = "Maccy-\(index + 1).\(content.fileExtension ?? "img")"
++        attachment.fileWrapper = wrapper
++        document.append(NSAttributedString(attachment: attachment))
++      }
++    }
++    guard let data = document.rtfd(from: NSRange(location: 0, length: document.length), documentAttributes: [:]) else {
++      return nil
++    }
++    let item = NSPasteboardItem()
++    item.setData(data, forType: .rtfd)
++    let body = contents.map { content -> String in
++      if let text = content.text {
++        let escaped = text.replacingOccurrences(of: "&", with: "&amp;")
++          .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
++          .replacingOccurrences(of: "\"", with: "&quot;")
++        return "<div style=\"white-space:pre-wrap\">" + escaped + "</div>"
++      }
++      if let data = content.imageData, let type = content.typeIdentifier {
++        let mime = UTType(type)?.preferredMIMEType ?? "application/octet-stream"
++        return "<div><img src=\"data:" + mime + ";base64," + data.base64EncodedString() + "\"></div>"
++      }
++      return ""
++    }.joined()
++    item.setString("<html><head><meta charset=\"utf-8\"></head><body>" + body + "</body></html>", forType: .html)
++    let text = contents.compactMap(\.text).joined(separator: "\n")
++    if !text.isEmpty { item.setString(text, forType: .string) }
++    return item
++  }
++
++  static func isMixed(_ contents: [HistoryDragContent]) -> Bool {
++    contents.contains(where: { $0.text != nil }) && contents.contains(where: { $0.imageData != nil })
++  }
++
++  static func chatParts(contents: [HistoryDragContent]) -> (text: String, images: [HistoryDragContent])? {
++    guard isMixed(contents) else { return nil }
++    return (contents.compactMap(\.text).joined(separator: "\n"), contents.filter { $0.imageData != nil })
++  }
++
++  static func pasteboardItems(contents: [HistoryDragContent], directory: URL) throws -> [NSPasteboardItem] {
++    if contents.allSatisfy({ $0.text != nil }) {
++      let item = NSPasteboardItem()
++      item.setString(contents.compactMap(\.text).joined(separator: "\n"), forType: .string)
++      return contents.isEmpty ? [] : [item]
++    }
++    // A mixed selection is one document, not unrelated alternatives that a
++    // receiver may filter down to just its image items.
++    if contents.contains(where: { $0.text != nil }), contents.contains(where: { $0.imageData != nil }) {
++      guard let item = combinedItem(contents: contents) else { throw CocoaError(.coderInvalidValue) }
++      return [item]
++    }
++    return try contents.enumerated().map { index, content in
++      let item = NSPasteboardItem()
++      if let text = content.text {
++        item.setString(text, forType: .string)
++      } else if let data = content.imageData, let type = content.typeIdentifier {
++        let url = directory.appendingPathComponent("Maccy-\(index + 1).\(content.fileExtension ?? "img")")
++        try data.write(to: url, options: .atomic)
++        item.setData(data, forType: NSPasteboard.PasteboardType(type))
++        item.setString(url.absoluteString, forType: .fileURL)
++      }
++      return item
++    }
++  }
++}
++
++// Native AppKit dragging is needed for multiple image/file pasteboard items;
++// SwiftUI onDrag only returns one NSItemProvider.
++struct HistoryNativeDragHandle: NSViewRepresentable {
++  var items: [HistoryItem]
++  var onClick: ((NSEvent.ModifierFlags) -> Void)?
++  var excludedLeadingWidth: CGFloat = 0
++  var chatMode: Bool = false
++
++  func makeNSView(context: Context) -> HistoryNativeDragView { HistoryNativeDragView() }
++  func updateNSView(_ view: HistoryNativeDragView, context: Context) {
++    view.snapshot = { HistoryDragPayload.contents(items: items) }
++    view.onClick = onClick
++    view.excludedLeadingWidth = excludedLeadingWidth
++    view.chatMode = chatMode
++  }
++}
++
++final class HistoryNativeDragView: NSView, NSDraggingSource {
++  var snapshot: (() -> [HistoryDragContent]?)?
++  var onClick: ((NSEvent.ModifierFlags) -> Void)?
++  var excludedLeadingWidth: CGFloat = 0
++  var chatMode = false
++  private var startPoint: NSPoint?
++  private var exportDirectory: URL?
++  override var isOpaque: Bool { false }
++
++  override func hitTest(_ point: NSPoint) -> NSView? {
++    if convert(point, from: superview).x < excludedLeadingWidth { return nil }
++    return super.hitTest(point)
++  }
++  override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
++  override func mouseDown(with event: NSEvent) { startPoint = event.locationInWindow }
++  override func mouseUp(with event: NSEvent) {
++    guard startPoint != nil else { return }
++    startPoint = nil
++    onClick?(event.modifierFlags)
++  }
++  override func mouseDragged(with event: NSEvent) {
++    guard let start = startPoint,
++          hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y) >= 4 else { return }
++    startPoint = nil
++    guard let contents = snapshot?() else { return }
++    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("MaccyDrag-\(UUID())")
++    do {
++      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
++      let chat = chatMode ? HistoryDragPayload.chatParts(contents: contents) : nil
++      let writers = try HistoryDragPayload.pasteboardItems(contents: chat?.images ?? contents, directory: directory)
++      guard !writers.isEmpty else { try? FileManager.default.removeItem(at: directory); return }
++      let items = writers.enumerated().map { index, writer in
++        let item = NSDraggingItem(pasteboardWriter: writer)
++        let icon = NSImage(systemSymbolName: contents.contains(where: { $0.imageData != nil }) ? "photo" : "doc.text",
++                           accessibilityDescription: nil)
++        item.setDraggingFrame(NSRect(x: index * 4, y: index * 4, width: 32, height: 32), contents: icon)
++        return item
++      }
++      if let text = chat?.text { Clipboard.shared.copyTextForDrag(text) }
++      exportDirectory = directory
++      let session = beginDraggingSession(with: items, event: event, source: self)
++      session.draggingFormation = .pile
++    } catch {
++      try? FileManager.default.removeItem(at: directory)
++      NSSound.beep()
++    }
++  }
++
++  func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
++    .copy
++  }
++
++  func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
++    guard let directory = exportDirectory else { return }
++    exportDirectory = nil
++    // Give receivers time to finish copying before removing temporary exports.
++    DispatchQueue.main.asyncAfter(deadline: .now() + 600) {
++      try? FileManager.default.removeItem(at: directory)
++    }
++  }
++}
+--- a/Maccy/Views/FooterView.swift
++++ b/Maccy/Views/FooterView.swift
+@@ -20,6 +20,7 @@
+ 
+   var body: some View {
+     VStack(spacing: 0) {
++      MultiDragBar()
+       Divider()
+         .padding(.horizontal, Popup.horizontalSeparatorPadding)
+         .padding(.bottom, Popup.verticalSeparatorPadding)
+--- a/Maccy/Views/HistoryItemView.swift
++++ b/Maccy/Views/HistoryItemView.swift
+@@ -30,11 +30,19 @@
+   }
+ 
+   @Default(.showHexColorSwatch) private var showHexColorSwatch
++  @AppStorage("localChatDragMode") private var chatMode = false
+   @Environment(AppState.self) private var appState
+ 
+   private var colorSwatchImage: NSImage? {
+     guard showHexColorSwatch else { return nil }
+     return ColorImage.from(item.title)
++  }
++
++  private var dragItems: [HistoryItem] {
++    if item.isSelected && appState.navigator.isMultiSelectInProgress {
++      return appState.navigator.selection.items.map(\.item)
++    }
++    return [item.item]
+   }
+ 
+   var body: some View {
+@@ -52,18 +60,107 @@
+     ) {
+       Text(verbatim: item.title)
+     }
++    .padding(.leading, appState.navigator.isManualMultiSelect ? 24 : 0)
++    .overlay(alignment: .leading) {
++      if appState.navigator.isManualMultiSelect {
++        Button {
++          appState.navigator.addToSelection(item: item)
++        } label: {
++          Image(systemName: item.isSelected ? "checkmark.circle.fill" : "circle")
++            .foregroundStyle(item.isSelected ? Color.accentColor : Color.secondary)
++        }
++        .buttonStyle(.plain)
++        .padding(.leading, 7)
++        .accessibilityLabel(NSLocalizedString(item.isSelected ? "Deselect item" : "Select item", comment: "Selection checkbox"))
++      }
++    }
++    .overlay {
++      HistoryNativeDragHandle(items: dragItems, onClick: handleClick,
++                              excludedLeadingWidth: appState.navigator.isManualMultiSelect ? 24 : 0, chatMode: chatMode)
++    }
+     .onAppear {
+       item.ensureThumbnailImage()
+     }
+-    .onTapGesture {
+-      if NSEvent.modifierFlags.contains(.command) && appState.multiSelectionEnabled {
+-        appState.navigator.addToSelection(item: item)
+-      } else {
+-        let flags = NSEvent.ModifierFlags.currentModifierFlags
+-        Task {
+-          appState.history.select(item, flags: flags)
+-        }
+-      }
++  }
++
++  private func handleClick(_ flags: NSEvent.ModifierFlags) {
++    if flags.contains(.shift), let anchor = appState.navigator.leadHistoryItem {
++      appState.navigator.isManualMultiSelect = true
++      appState.navigator.extendSelection(from: anchor, to: item, isRange: true)
++    } else if appState.navigator.isManualMultiSelect || flags.contains(.command) {
++      appState.navigator.addToSelection(item: item)
++    } else {
++      Task { appState.history.select(item, flags: flags) }
+     }
+   }
+ }
++
++struct MultiDragBar: View {
++  @AppStorage("localChatDragMode") private var chatMode = false
++  @Environment(AppState.self) private var appState
++
++  private var selected: [HistoryItem] { appState.navigator.selection.items.map(\.item) }
++  private var chatText: String? {
++    guard chatMode, let contents = HistoryDragPayload.contents(items: selected) else { return nil }
++    return HistoryDragPayload.chatParts(contents: contents)?.text
++  }
++
++  var body: some View {
++    HStack(spacing: 8) {
++      Button(NSLocalizedString(appState.navigator.isManualMultiSelect ? "Done" : "Multi-select", comment: "Selection mode")) {
++        let entering = !appState.navigator.isManualMultiSelect
++        appState.navigator.select(item: nil)
++        appState.navigator.isManualMultiSelect = entering
++        if !entering { appState.navigator.highlightFirst() }
++      }
++      .buttonStyle(.borderless)
++
++      if appState.navigator.isMultiSelectInProgress && !selected.isEmpty {
++        if HistoryDragPayload.contents(items: selected) != nil {
++          Button(NSLocalizedString(chatText != nil ? "Copy text" : "Copy combined", comment: "Copy selection")) {
++            if let text = chatText {
++              Clipboard.shared.copyTextForDrag(text)
++              appState.popup.close()
++            } else if Clipboard.shared.copyCombined(selected) {
++              appState.popup.close()
++            } else { NSSound.beep() }
++          }
++          .buttonStyle(.borderless)
++          Label(HistoryDragLabels.count(selected.count), systemImage: "hand.draw")
++            .overlay { HistoryNativeDragHandle(items: selected, chatMode: chatMode) }
++            .help(NSLocalizedString("Drag selected text and images. Text-only selections are joined with newlines.", comment: "Drag help"))
++        } else {
++          Text(NSLocalizedString("This selection cannot be dragged", comment: "Unsupported selection"))
++        }
++      } else {
++        Text(NSLocalizedString("Shift ↑/↓ select · Enter paste · ⇧Enter text", comment: "Keyboard selection help"))
++      }
++      Spacer(minLength: 0)
++      Picker(NSLocalizedString("Drop mode", comment: "Drag compatibility mode"), selection: $chatMode) {
++        Text(NSLocalizedString("Combined", comment: "Rich document mode")).tag(false)
++        Text(NSLocalizedString("Chat attachments", comment: "Chat file mode")).tag(true)
++      }
++      .labelsHidden()
++      .fixedSize()
++    }
++    .overlay(alignment: .bottomLeading) {
++      if chatText != nil && appState.navigator.isMultiSelectInProgress {
++        Text(NSLocalizedString("Drag images, then ⌘V for text", comment: "Chat drop instructions"))
++          .font(.caption2)
++          .offset(y: 14)
++      }
++    }
++    .padding(.bottom, chatText != nil && appState.navigator.isMultiSelectInProgress ? 14 : 0)
++    .font(.caption)
++    .foregroundStyle(.secondary)
++    .padding(.horizontal, 10)
++    .padding(.vertical, 6)
++  }
++}
++
++struct HistoryDragLabels {
++  static func count(_ count: Int) -> String {
++    if count == 1 { return NSLocalizedString("Drag 1 item", comment: "Drag one record") }
++    return String(format: NSLocalizedString("Drag %ld items", comment: "Drag record count"), count)
++  }
++}
+--- a/Maccy/Views/HoverSelectionModifier.swift
++++ b/Maccy/Views/HoverSelectionModifier.swift
+@@ -7,7 +7,8 @@
+   func body(content: Content) -> some View {
+     content.onHover { hovering in
+       if hovering {
+-        if !appState.navigator.isKeyboardNavigating && !appState.navigator.isMultiSelectInProgress {
++        if !appState.navigator.isKeyboardNavigating && !appState.navigator.isMultiSelectInProgress
++          && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty {
+           appState.navigator.selectWithoutScrolling(id: id)
+         } else {
+           appState.navigator.hoverSelectionWhileKeyboardNavigating = id
+--- a/Maccy/Views/KeyHandlingView.swift
++++ b/Maccy/Views/KeyHandlingView.swift
+@@ -148,7 +148,12 @@
+           appState.togglePin()
+           return .handled
+         case .selectCurrentItem:
+-          appState.select(flags: .currentModifierFlags)
++          let flags = NSEvent.ModifierFlags.currentModifierFlags
++          if flags.intersection([.command, .option, .control]).isEmpty {
++            appState.pasteSelectionFromKeyboard(plainText: flags.contains(.shift))
++          } else {
++            appState.select(flags: flags)
++          }
+           return .handled
+         case .close:
+           appState.popup.close()
+--- a/Maccy/en.lproj/Localizable.strings
++++ b/Maccy/en.lproj/Localizable.strings
+@@ -12,3 +12,33 @@
+ "clear_alert_comment" = "You can't undo this action.";
+ "clear_alert_cancel" = "Cancel";
+ "clear_alert_confirm" = "Clear";
++
++/* Raphael local build */
++"Multi-select" = "Multi-select";
++"Done" = "Done";
++"Select item" = "Select item";
++"Deselect item" = "Deselect item";
++"Drag 1 item" = "Drag 1 item";
++"Drag %ld items" = "Drag %ld items";
++"Drag selected text and images. Text-only selections are joined with newlines." = "Drag selected text and images. Text-only selections are joined with newlines.";
++"This selection cannot be dragged" = "This selection cannot be dragged";
++"⌘ click · Shift range" = "⌘ click · Shift range";
++"Raphael local build" = "Raphael local build";
++"Memory fixes · Text and image drag" = "Memory fixes · Text and image drag";
++"Based on Maccy 2.7.1" = "Based on Maccy 2.7.1";
++"Maccy · Raphael’s build" = "Maccy · Raphael’s build";
++"Local Fix %d" = "Local Fix %d";
++
++"Copy combined" = "Copy combined";
++"Memory fixes · Combined text and images" = "Memory fixes · Combined text and images";
++
++"Copy text" = "Copy text";
++"Drop mode" = "Drop mode";
++"Combined" = "Combined";
++"Chat attachments" = "Chat attachments";
++"Drag images, then ⌘V for text" = "Drag images, then ⌘V for text";
++
++"Shift ↑/↓ select · Enter paste · ⇧Enter text" = "Shift ↑/↓ select · Enter paste · ⇧Enter text";
++
++"Automatic paste: allowed" = "Automatic paste: allowed";
++"Automatic paste: needs Accessibility permission" = "Automatic paste: needs Accessibility permission";
+--- a/Maccy/zh-Hans.lproj/Localizable.strings
++++ b/Maccy/zh-Hans.lproj/Localizable.strings
+@@ -12,3 +12,33 @@
+ "clear_alert_comment" = "无法撤消此操作。";
+ "clear_alert_cancel" = "取消";
+ "clear_alert_confirm" = "清除";
++
++/* Raphael local build */
++"Multi-select" = "多选";
++"Done" = "完成";
++"Select item" = "选择记录";
++"Deselect item" = "取消选择";
++"Drag 1 item" = "拖出 1 条记录";
++"Drag %ld items" = "拖出 %ld 条记录";
++"Drag selected text and images. Text-only selections are joined with newlines." = "拖出选中的文字和图片；纯文字按选中顺序换行合并。";
++"This selection cannot be dragged" = "此选择暂不支持拖出";
++"⌘ click · Shift range" = "⌘ 点选 · Shift 连选";
++"Raphael local build" = "Raphael 本地修复版";
++"Memory fixes · Text and image drag" = "内存修复 · 图文多选拖出";
++"Based on Maccy 2.7.1" = "基于官方 Maccy 2.7.1";
++"Maccy · Raphael’s build" = "Maccy · Raphael 修复版";
++"Local Fix %d" = "本地修复 %d";
++
++"Copy combined" = "复制组合内容";
++"Memory fixes · Combined text and images" = "内存修复 · 图文组合粘贴";
++
++"Copy text" = "复制文字";
++"Drop mode" = "拖放模式";
++"Combined" = "图文组合";
++"Chat attachments" = "聊天附件";
++"Drag images, then ⌘V for text" = "拖出图片，再按 ⌘V 粘贴文字";
++
++"Shift ↑/↓ select · Enter paste · ⇧Enter text" = "Shift ↑/↓ 多选 · Enter 粘贴 · ⇧Enter 纯文本";
++
++"Automatic paste: allowed" = "自动粘贴：已授权";
++"Automatic paste: needs Accessibility permission" = "自动粘贴：需要辅助功能授权";
+--- a/Maccy/zh-Hant.lproj/Localizable.strings
++++ b/Maccy/zh-Hant.lproj/Localizable.strings
+@@ -12,3 +12,33 @@
+ "clear_alert_comment" = "您無法還原此操作。";
+ "clear_alert_cancel" = "取消";
+ "clear_alert_confirm" = "清除";
++
++/* Raphael local build */
++"Multi-select" = "多選";
++"Done" = "完成";
++"Select item" = "選取記錄";
++"Deselect item" = "取消選取";
++"Drag 1 item" = "拖出 1 則記錄";
++"Drag %ld items" = "拖出 %ld 則記錄";
++"Drag selected text and images. Text-only selections are joined with newlines." = "拖出選取的文字與圖片；純文字依選取順序換行合併。";
++"This selection cannot be dragged" = "此選取暫不支援拖出";
++"⌘ click · Shift range" = "⌘ 點選 · Shift 連選";
++"Raphael local build" = "Raphael 本機修復版";
++"Memory fixes · Text and image drag" = "記憶體修復 · 圖文多選拖出";
++"Based on Maccy 2.7.1" = "基於官方 Maccy 2.7.1";
++"Maccy · Raphael’s build" = "Maccy · Raphael 修復版";
++"Local Fix %d" = "本機修復 %d";
++
++"Copy combined" = "複製組合內容";
++"Memory fixes · Combined text and images" = "記憶體修復 · 圖文組合貼上";
++
++"Copy text" = "複製文字";
++"Drop mode" = "拖放模式";
++"Combined" = "圖文組合";
++"Chat attachments" = "聊天附件";
++"Drag images, then ⌘V for text" = "拖出圖片，再按 ⌘V 貼上文字";
++
++"Shift ↑/↓ select · Enter paste · ⇧Enter text" = "Shift ↑/↓ 多選 · Enter 貼上 · ⇧Enter 純文字";
++
++"Automatic paste: allowed" = "自動貼上：已授權";
++"Automatic paste: needs Accessibility permission" = "自動貼上：需要輔助使用授權";
+--- a/MaccyTests/ClipboardTests.swift
++++ b/MaccyTests/ClipboardTests.swift
+@@ -136,23 +136,25 @@
+     XCTAssertFalse(Defaults[.ignoreOnlyNextEvent])
+   }
+ 
+-  func testIgnoreApplication() {
+-    Defaults[.ignoredApps] = ["com.apple.dt.Xcode", "com.apple.finder"] // Finder is on Bitrise
+-
+-    let hookExpectation = expectation(description: "Hook is called")
+-    hookExpectation.isInverted = true
+-    clipboard.onNewCopy({ (_: HistoryItem) in
+-      hookExpectation.fulfill()
+-    })
+-    clipboard.start()
+-    pasteboard.declareTypes([.string], owner: nil)
+-    pasteboard.setString("bar", forType: .string)
+-    waitForExpectations(timeout: 2)
+-  }
+-
+-  func testIgnoreAllApplicationsExcept() {
++  func testIgnoreApplication() throws {
++    let application = try XCTUnwrap(NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
++    Defaults[.ignoredApps] = [application]
++
++    let hookExpectation = expectation(description: "Hook is called")
++    hookExpectation.isInverted = true
++    clipboard.onNewCopy({ (_: HistoryItem) in
++      hookExpectation.fulfill()
++    })
++    clipboard.start()
++    pasteboard.declareTypes([.string], owner: nil)
++    pasteboard.setString("bar", forType: .string)
++    waitForExpectations(timeout: 2)
++  }
++
++  func testIgnoreAllApplicationsExcept() throws {
++    let application = try XCTUnwrap(NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+     Defaults[.ignoreAllAppsExceptListed] = true
+-    Defaults[.ignoredApps] = ["com.apple.dt.Xcode", "com.apple.finder"] // Finder is on Bitrise
++    Defaults[.ignoredApps] = [application]
+ 
+     let hookExpectation = expectation(description: "Hook is called")
+     clipboard.onNewCopy({ (_: HistoryItem) in
+--- a/MaccyTests/HistoryDecoratorTests.swift
++++ b/MaccyTests/HistoryDecoratorTests.swift
+@@ -30,6 +30,74 @@
+     super.tearDown()
+     Defaults[.imageMaxHeight] = savedImageMaxHeight
+     Defaults[.highlightMatch] = savedHighlightMatch
++  }
++
++  func testDecoratorIsReleasedWithoutChangingObservedProperties() {
++    let item = HistoryItem()
++    Storage.shared.context.insert(item)
++    weak var decorator: HistoryItemDecorator?
++    autoreleasepool {
++      let candidate = HistoryItemDecorator(item)
++      decorator = candidate
++    }
++    XCTAssertNil(decorator)
++  }
++
++  func testImageCleanupAllowsRegeneration() async {
++    let image = NSImage(named: "StatusBarMenuImage")!
++    let decorator = historyItemDecorator(image)
++    decorator.ensureThumbnailImage()
++    decorator.ensurePreviewImage()
++    _ = await decorator.thumbnailImageGenerationTask?.result
++    _ = await decorator.previewImageGenerationTask?.result
++    XCTAssertNotNil(decorator.thumbnailImage)
++    XCTAssertNotNil(decorator.previewImage)
++    decorator.cleanupImages()
++    XCTAssertNil(decorator.thumbnailImageGenerationTask)
++    XCTAssertNil(decorator.previewImageGenerationTask)
++    decorator.ensureThumbnailImage()
++    decorator.ensurePreviewImage()
++    _ = await decorator.thumbnailImageGenerationTask?.result
++    _ = await decorator.previewImageGenerationTask?.result
++    XCTAssertNotNil(decorator.thumbnailImage)
++    XCTAssertNotNil(decorator.previewImage)
++  }
++
++  func testResizedImageDoesNotRetainSource() {
++    weak var source: NSImage?
++    var thumbnail: NSImage?
++    autoreleasepool {
++      let image = NSImage(size: NSSize(width: 400, height: 400))
++      image.lockFocus()
++      NSColor.red.setFill()
++      NSRect(x: 0, y: 0, width: 400, height: 400).fill()
++      image.unlockFocus()
++      source = image
++      thumbnail = image.resized(to: NSSize(width: 40, height: 40))
++    }
++    XCTAssertNil(source)
++    XCTAssertEqual(thumbnail?.size, NSSize(width: 40, height: 40))
++    XCTAssertNotNil(thumbnail?.tiffRepresentation)
++  }
++
++  func testCancelledImageTasksDoNotRepopulateCaches() async {
++    let decorator = historyItemDecorator(NSImage(named: "StatusBarMenuImage")!)
++    decorator.ensureThumbnailImage()
++    decorator.ensurePreviewImage()
++    decorator.cleanupImages()
++    await Task.yield()
++    XCTAssertNil(decorator.thumbnailImage)
++    XCTAssertNil(decorator.previewImage)
++  }
++
++  func testPreviewCleanupPreservesThumbnailAndAllowsRegeneration() async {
++    let decorator = historyItemDecorator(NSImage(named: "StatusBarMenuImage")!)
++    decorator.sizeImages()
++    decorator.cleanupPreviewImage()
++    XCTAssertNotNil(decorator.thumbnailImage)
++    XCTAssertNil(decorator.previewImage)
++    let preview = await decorator.asyncGetPreviewImage()
++    XCTAssertNotNil(preview)
+   }
+ 
+   func testString() {
+--- a/MaccyTests/HistoryTests.swift
++++ b/MaccyTests/HistoryTests.swift
+@@ -22,6 +22,269 @@
+     Defaults[.size] = savedSize
+     Defaults[.sortBy] = savedSortBy
+     Defaults[.pinTo] = savedPinTo
++  }
++
++  func testDragJoinsFullTextInSelectionOrder() {
++    let longText = String(repeating: "正文🙂", count: 500)
++    let first = historyItem(longText)
++    let second = historyItem("second\nline")
++    XCTAssertEqual(HistoryDragPayload.text(items: [second, first]), "second\nline\n" + longText)
++    XCTAssertTrue(HistoryDragPayload.provider(items: [first, second])!.canLoadObject(ofClass: NSString.self))
++  }
++
++  func testDragProviderLoadsMergedText() async throws {
++    let provider = try XCTUnwrap(HistoryDragPayload.provider(items: [historyItem("第一条🙂"), historyItem("second")]))
++    let transferred: String = try await withCheckedThrowingContinuation { continuation in
++      _ = provider.loadObject(ofClass: NSString.self) { value, error in
++        if let error {
++          continuation.resume(throwing: error)
++        } else if let text = value as? String {
++          continuation.resume(returning: text)
++        } else {
++          continuation.resume(throwing: CocoaError(.coderInvalidValue))
++        }
++      }
++    }
++    XCTAssertEqual(transferred, "第一条🙂\nsecond")
++  }
++
++  func testDragRejectsEmptyAndImageSelections() {
++    XCTAssertNil(HistoryDragPayload.text(items: []))
++    let image = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: Data([1, 2, 3]))])
++    XCTAssertNil(HistoryDragPayload.provider(items: [historyItem("text"), image]))
++  }
++
++  private func dragTestImage(_ color: NSColor) throws -> (HistoryItem, Data) {
++    let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 23, pixelsHigh: 17,
++      bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
++      colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
++    for x in 0..<23 {
++      for y in 0..<17 { bitmap.setColor(color, atX: x, y: y) }
++    }
++    let data = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
++    let item = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: data)])
++    return (item, data)
++  }
++
++  func testSingleImageProviderPreservesOriginalData() async throws {
++    let (image, data) = try dragTestImage(.red)
++    let provider = try XCTUnwrap(HistoryDragPayload.provider(items: [image]))
++    XCTAssertTrue(provider.hasItemConformingToTypeIdentifier("public.png"))
++    let received: Data = try await withCheckedThrowingContinuation { continuation in
++      _ = provider.loadDataRepresentation(forTypeIdentifier: "public.png") { data, error in
++        if let error { continuation.resume(throwing: error) }
++        else if let data { continuation.resume(returning: data) }
++        else { continuation.resume(throwing: CocoaError(.coderInvalidValue)) }
++      }
++    }
++    XCTAssertEqual(received, data)
++    let bitmap = try XCTUnwrap(NSBitmapImageRep(data: received))
++    XCTAssertEqual(bitmap.pixelsWide, 23)
++    XCTAssertEqual(bitmap.pixelsHigh, 17)
++  }
++
++  func testMultipleImagesExportDistinctOriginalFiles() throws {
++    let (red, redData) = try dragTestImage(.red)
++    let (blue, blueData) = try dragTestImage(.blue)
++    let contents = try XCTUnwrap(HistoryDragPayload.contents(items: [red, blue]))
++    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
++    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
++    defer { try? FileManager.default.removeItem(at: directory) }
++    let items = try HistoryDragPayload.pasteboardItems(contents: contents, directory: directory)
++    XCTAssertEqual(items.count, 2)
++    for (index, expected) in [redData, blueData].enumerated() {
++      XCTAssertEqual(items[index].data(forType: .png), expected)
++      let url = try XCTUnwrap(URL(string: try XCTUnwrap(items[index].string(forType: .fileURL))))
++      XCTAssertEqual(try Data(contentsOf: url), expected)
++    }
++    XCTAssertNotEqual(items[0].string(forType: .fileURL), items[1].string(forType: .fileURL))
++  }
++
++  func testMixedNativeDragPreservesOrderAndText() throws {
++    let (image, data) = try dragTestImage(.green)
++    let contents = try XCTUnwrap(HistoryDragPayload.contents(items: [historyItem("before"), image, historyItem("after")]))
++    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
++    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
++    defer { try? FileManager.default.removeItem(at: directory) }
++    let items = try HistoryDragPayload.pasteboardItems(contents: contents, directory: directory)
++    XCTAssertEqual(items.count, 1)
++    let item = try XCTUnwrap(items.first)
++    XCTAssertEqual(item.string(forType: .string), "before\nafter")
++    let document = try XCTUnwrap(NSAttributedString(rtfd: try XCTUnwrap(item.data(forType: .rtfd)), documentAttributes: nil))
++    XCTAssertEqual(document.string, "before\n\u{fffc}\nafter")
++    let attachment = try XCTUnwrap(document.attribute(.attachment, at: 7, effectiveRange: nil) as? NSTextAttachment)
++    XCTAssertEqual(attachment.fileWrapper?.regularFileContents, data)
++  }
++
++  func testNativeTextReceiverReadsTextAndAttachmentTogether() throws {
++    let (image, _) = try dragTestImage(.red)
++    let contents = try XCTUnwrap(HistoryDragPayload.contents(items: [historyItem("before"), image, historyItem("after")]))
++    let item = try XCTUnwrap(HistoryDragPayload.combinedItem(contents: contents))
++    let pasteboard = NSPasteboard.withUniqueName()
++    defer { pasteboard.releaseGlobally() }
++    XCTAssertTrue(pasteboard.writeObjects([item]))
++    let receiver = NSTextView(frame: NSRect(x: 0, y: 0, width: 300, height: 200))
++    receiver.isRichText = true
++    receiver.importsGraphics = true
++    XCTAssertTrue(receiver.readSelection(from: pasteboard))
++    XCTAssertEqual(receiver.string, "before\n\u{fffc}\nafter")
++    XCTAssertNotNil(receiver.textStorage?.attribute(.attachment, at: 7, effectiveRange: nil))
++  }
++
++  func testCombinedHTMLAndPlainTextFallback() throws {
++    let (image, data) = try dragTestImage(.blue)
++    let contents = try XCTUnwrap(HistoryDragPayload.contents(items: [historyItem("<&\"\nfirst"), image, historyItem("last")]))
++    let item = try XCTUnwrap(HistoryDragPayload.combinedItem(contents: contents))
++    let html = try XCTUnwrap(item.string(forType: .html))
++    XCTAssertTrue(html.contains("&lt;&amp;&quot;"))
++    XCTAssertTrue(html.contains("data:image/png;base64," + data.base64EncodedString()))
++    XCTAssertEqual(item.string(forType: .string), "<&\"\nfirst\nlast")
++  }
++
++  func testChatModeKeepsAllTextAndImages() throws {
++    let (image, data) = try dragTestImage(.green)
++    let contents = try XCTUnwrap(HistoryDragPayload.contents(items: [historyItem("before"), image, historyItem("after")]))
++    let parts = try XCTUnwrap(HistoryDragPayload.chatParts(contents: contents))
++    XCTAssertEqual(parts.text, "before\nafter")
++    XCTAssertEqual(parts.images.count, 1)
++    XCTAssertEqual(parts.images.first?.imageData, data)
++  }
++
++  func testImageRecordWithExplicitTextRetainsBoth() throws {
++    let (image, data) = try dragTestImage(.red)
++    image.contents.append(HistoryItemContent(type: "public.utf8-plain-text", value: "caption".data(using: .utf8)))
++    let contents = try XCTUnwrap(HistoryDragPayload.contents(items: [image]))
++    XCTAssertEqual(contents.compactMap(\.text), ["caption"])
++    XCTAssertEqual(contents.compactMap(\.imageData), [data])
++  }
++
++  func testMixedRichDocumentContainsImageAttachment() async throws {
++    let (image, _) = try dragTestImage(.red)
++    let provider = try XCTUnwrap(HistoryDragPayload.provider(items: [historyItem("before"), image, historyItem("after")]))
++    let data: Data = try await withCheckedThrowingContinuation { continuation in
++      _ = provider.loadDataRepresentation(forTypeIdentifier: NSPasteboard.PasteboardType.rtfd.rawValue) { data, error in
++        if let error { continuation.resume(throwing: error) }
++        else if let data { continuation.resume(returning: data) }
++        else { continuation.resume(throwing: CocoaError(.coderInvalidValue)) }
++      }
++    }
++    let document = try XCTUnwrap(NSAttributedString(rtfd: data, documentAttributes: nil))
++    XCTAssertTrue(document.string.hasPrefix("before\n"))
++    XCTAssertTrue(document.string.hasSuffix("\nafter"))
++    XCTAssertNotNil(document.attribute(.attachment, at: 7, effectiveRange: nil))
++  }
++
++  func testLocalBuildTranslations() throws {
++    for (language, expected) in [("en", "Drag 1 item"), ("zh-Hans", "拖出 1 条记录"), ("zh-Hant", "拖出 1 則記錄")] {
++      let path = try XCTUnwrap(Bundle.main.path(forResource: language, ofType: "lproj"))
++      let bundle = try XCTUnwrap(Bundle(path: path))
++      XCTAssertEqual(bundle.localizedString(forKey: "Drag 1 item", value: nil, table: nil), expected)
++      XCTAssertNotEqual(bundle.localizedString(forKey: "Raphael local build", value: nil, table: nil), "")
++    }
++  }
++
++  func testNativeDragSourceClickPreservesModifiers() throws {
++    let view = HistoryNativeDragView(frame: NSRect(x: 0, y: 0, width: 100, height: 30))
++    var received: NSEvent.ModifierFlags?
++    view.onClick = { received = $0 }
++    let down = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: 10, y: 10),
++      modifierFlags: .command, timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 0))
++    let up = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseUp, location: NSPoint(x: 10, y: 10),
++      modifierFlags: .command, timestamp: 1, windowNumber: 0, context: nil, eventNumber: 1, clickCount: 1, pressure: 0))
++    view.mouseDown(with: down)
++    view.mouseUp(with: up)
++    XCTAssertEqual(received, .command)
++  }
++
++  func testUnsupportedDragDoesNotTurnIntoPasteClick() throws {
++    let view = HistoryNativeDragView(frame: NSRect(x: 0, y: 0, width: 100, height: 30))
++    var clicked = false
++    view.onClick = { _ in clicked = true }
++    view.snapshot = { nil }
++    for type in [NSEvent.EventType.leftMouseDown, .leftMouseDragged, .leftMouseUp] {
++      let location = NSPoint(x: type == .leftMouseDown ? 10 : 30, y: 10)
++      let event = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: location,
++        modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 0))
++      if type == .leftMouseDown { view.mouseDown(with: event) }
++      else if type == .leftMouseDragged { view.mouseDragged(with: event) }
++      else { view.mouseUp(with: event) }
++    }
++    XCTAssertFalse(clicked)
++  }
++
++  func testKeyboardPlainTextRemovesImagesAndAllFormatting() throws {
++    let (image, _) = try dragTestImage(.red)
++    let item = try XCTUnwrap(HistoryDragPayload.clipboardItem(items: [historyItem("before"), image, historyItem("after")], plainText: true))
++    XCTAssertEqual(item.string(forType: .string), "before\nafter")
++    XCTAssertEqual(item.types, [.string])
++  }
++
++  func testKeyboardRichPasteKeepsTextAndImage() throws {
++    let (image, _) = try dragTestImage(.red)
++    let item = try XCTUnwrap(HistoryDragPayload.clipboardItem(items: [historyItem("before"), image, historyItem("after")], plainText: false))
++    let document = try XCTUnwrap(NSAttributedString(rtfd: try XCTUnwrap(item.data(forType: .rtfd)), documentAttributes: nil))
++    XCTAssertEqual(document.string, "before\n\u{fffc}\nafter")
++    XCTAssertNotNil(document.attribute(.attachment, at: 7, effectiveRange: nil))
++  }
++
++  func testKeyboardPlainTextDoesNotSubstituteOCRForImage() throws {
++    let (image, _) = try dragTestImage(.red)
++    image.title = "OCR is only a title"
++    XCTAssertNil(HistoryDragPayload.clipboardItem(items: [image], plainText: true))
++  }
++
++  func testKeyboardPlainTextExtractsRichText() throws {
++    let attributed = NSAttributedString(string: "formatted", attributes: [.font: NSFont.boldSystemFont(ofSize: 18)])
++    let data = try attributed.data(from: NSRange(location: 0, length: attributed.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
++    let item = HistoryItem(contents: [HistoryItemContent(type: "public.rtf", value: data)])
++    let output = try XCTUnwrap(HistoryDragPayload.clipboardItem(items: [item, historyItem("second")], plainText: true))
++    XCTAssertEqual(output.types, [.string])
++    XCTAssertEqual(output.string(forType: .string), "formatted\nsecond")
++  }
++
++  func testKeyboardRichPasteRetainsOriginalFontStyle() throws {
++    let attributed = NSAttributedString(string: "bold", attributes: [.font: NSFont.boldSystemFont(ofSize: 18)])
++    let data = try attributed.data(from: NSRange(location: 0, length: attributed.length), documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
++    let item = HistoryItem(contents: [HistoryItemContent(type: "public.rtf", value: data)])
++    let output = try XCTUnwrap(HistoryDragPayload.clipboardItem(items: [item, historyItem("second")], plainText: false))
++    let document = try XCTUnwrap(NSAttributedString(rtfd: try XCTUnwrap(output.data(forType: .rtfd)), documentAttributes: nil))
++    let font = try XCTUnwrap(document.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
++    XCTAssertTrue(font.fontDescriptor.symbolicTraits.contains(.bold))
++    XCTAssertEqual(document.string, "bold\nsecond")
++  }
++
++  func testKeyboardPlainTextDoesNotNeedToDecodeImage() throws {
++    let image = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: Data([1, 2, 3]))])
++    let output = try XCTUnwrap(HistoryDragPayload.clipboardItem(items: [image, historyItem("text")], plainText: true))
++    XCTAssertEqual(output.string(forType: .string), "text")
++  }
++
++  func testManualSelectionTogglesAndKeepsOrder() {
++    let navigator = AppState.shared.navigator
++    let first = history.add(historyItem("first"))
++    let second = history.add(historyItem("second"))
++    navigator.select(item: nil)
++    navigator.addToSelection(item: second)
++    navigator.addToSelection(item: first)
++    XCTAssertEqual(navigator.selection.items, [second, first])
++    XCTAssertTrue(navigator.isManualMultiSelect)
++    navigator.addToSelection(item: second)
++    XCTAssertEqual(navigator.selection.items, [first])
++    navigator.addToSelection(item: first)
++    XCTAssertTrue(navigator.selection.isEmpty)
++    navigator.isManualMultiSelect = false
++  }
++
++  func testShiftRangeSelectsVisibleRecords() {
++    let navigator = AppState.shared.navigator
++    let first = history.add(historyItem("first"))
++    let middle = history.add(historyItem("middle"))
++    let last = history.add(historyItem("last"))
++    navigator.select(item: first)
++    navigator.extendSelection(from: first, to: last, isRange: true)
++    XCTAssertEqual(Set(navigator.selection.items), Set([first, middle, last]))
++    navigator.select(item: nil)
++    navigator.isManualMultiSelect = false
+   }
+ 
+   func testDefaultIsEmpty() {

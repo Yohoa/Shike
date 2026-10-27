@@ -148,7 +148,12 @@ struct KeyHandlingView<Content: View>: View {
           appState.togglePin()
           return .handled
         case .selectCurrentItem:
-          appState.select(flags: .currentModifierFlags)
+          let flags = NSEvent.ModifierFlags.currentModifierFlags
+          if flags.intersection([.command, .option, .control]).isEmpty {
+            appState.pasteSelectionFromKeyboard(plainText: flags.contains(.shift))
+          } else {
+            appState.select(flags: flags)
+          }
           return .handled
         case .close:
           appState.popup.close()

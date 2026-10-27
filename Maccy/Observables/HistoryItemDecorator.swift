@@ -39,7 +39,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
     return url.deletingPathExtension().lastPathComponent
   }
 
-  var hasImage: Bool { item.image != nil }
+  var hasImage: Bool { item.imageData != nil }
 
   var previewImageGenerationTask: Task<(), Error>?
   var thumbnailImageGenerationTask: Task<(), Error>?
@@ -77,7 +77,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
 
   @MainActor
   func ensureThumbnailImage() {
-    guard item.image != nil else {
+    guard item.imageData != nil else {
       return
     }
     guard thumbnailImage == nil else {
@@ -87,13 +87,14 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
       return
     }
     thumbnailImageGenerationTask = Task { [weak self] in
+      guard !Task.isCancelled else { return }
       self?.generateThumbnailImage()
     }
   }
 
   @MainActor
   func ensurePreviewImage() {
-    guard item.image != nil else {
+    guard item.imageData != nil else {
       return
     }
     guard previewImage == nil else {
@@ -103,6 +104,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
       return
     }
     previewImageGenerationTask = Task { [weak self] in
+      guard !Task.isCancelled else { return }
       self?.generatePreviewImage()
     }
   }
@@ -120,10 +122,17 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
   @MainActor
   func cleanupImages() {
     thumbnailImageGenerationTask?.cancel()
-    previewImageGenerationTask?.cancel()
+    thumbnailImageGenerationTask = nil
     thumbnailImage?.recache()
-    previewImage?.recache()
     thumbnailImage = nil
+    cleanupPreviewImage()
+  }
+
+  @MainActor
+  func cleanupPreviewImage() {
+    previewImageGenerationTask?.cancel()
+    previewImageGenerationTask = nil
+    previewImage?.recache()
     previewImage = nil
     item.clearDecodedImageCache()
   }
@@ -133,6 +142,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
     guard let image = item.image else {
       return
     }
+    defer { item.clearDecodedImageCache() }
     thumbnailImage = image.resized(to: HistoryItemDecorator.thumbnailImageSize)
   }
 
@@ -141,6 +151,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
     guard let image = item.image else {
       return
     }
+    defer { item.clearDecodedImageCache() }
     previewImage = image.resized(to: HistoryItemDecorator.previewImageSize)
   }
 
@@ -190,8 +201,9 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
   private func synchronizeItemPin() {
     _ = withObservationTracking {
       item.pin
-    } onChange: {
-      DispatchQueue.main.async {
+    } onChange: { [weak self] in
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
         if let pin = self.item.pin {
           self.shortcuts = KeyShortcut.create(character: pin)
         }
@@ -203,8 +215,9 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
   private func synchronizeItemTitle() {
     _ = withObservationTracking {
       item.title
-    } onChange: {
-      DispatchQueue.main.async {
+    } onChange: { [weak self] in
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
         self.title = self.item.title
         self.synchronizeItemTitle()
       }

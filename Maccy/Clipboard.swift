@@ -13,6 +13,7 @@ class Clipboard {
   private let pasteboard = NSPasteboard.general
 
   private var timer: Timer?
+  private var pasteTarget: NSRunningApplication?
 
   private let dynamicTypePrefix = "dyn."
   private let microsoftSourcePrefix = "com.microsoft.ole.source."
@@ -72,6 +73,27 @@ class Clipboard {
   }
 
   @MainActor
+  func copyTextForDrag(_ text: String) {
+    let item = NSPasteboardItem()
+    item.setString(text, forType: .string)
+    item.setString("", forType: .fromMaccy)
+    pasteboard.clearContents()
+    pasteboard.writeObjects([item])
+    sync()
+  }
+
+  @MainActor
+  @discardableResult
+  func copyCombined(_ items: [HistoryItem], plainText: Bool = false) -> Bool {
+    guard let combined = HistoryDragPayload.clipboardItem(items: items, plainText: plainText) else { return false }
+    combined.setString("", forType: .fromMaccy)
+    pasteboard.clearContents()
+    guard pasteboard.writeObjects([combined]) else { return false }
+    sync()
+    return true
+  }
+
+  @MainActor
   func copy(_ item: HistoryItem?, removeFormatting: Bool = false) {
     guard let item else { return }
 
@@ -110,9 +132,42 @@ class Clipboard {
   }
 
   // Based on https://github.com/Clipy/Clipy/blob/develop/Clipy/Sources/Services/PasteService.swift.
-  func paste() {
-    Accessibility.check()
+  func capturePasteTarget() {
+    if let app = NSWorkspace.shared.frontmostApplication, app.processIdentifier != ProcessInfo.processInfo.processIdentifier {
+      pasteTarget = app
+    }
+  }
 
+  func paste() {
+    guard Accessibility.check() else {
+      NSLog("Local paste blocked: Accessibility/PostEvent permission missing; contents remain copied")
+      return
+    }
+    let current = NSWorkspace.shared.frontmostApplication
+    let target = pasteTarget ?? current.flatMap {
+      $0.processIdentifier == ProcessInfo.processInfo.processIdentifier ? nil : $0
+    }
+    guard let target, !target.isTerminated else {
+      NSLog("Local paste cancelled: no external target application")
+      return
+    }
+    Task { @MainActor in
+      if !target.isActive { target.activate(options: []) }
+      for _ in 0..<25 {
+        if target.isActive && NSApp.keyWindow == nil { break }
+        try? await Task.sleep(for: .milliseconds(20))
+      }
+      guard target.isActive, NSApp.keyWindow == nil else {
+        NSLog("Local paste cancelled: target focus was not restored")
+        return
+      }
+      try? await Task.sleep(for: .milliseconds(100))
+      guard target.isActive, NSApp.keyWindow == nil else { return }
+      self.postPasteShortcut()
+    }
+  }
+
+  private func postPasteShortcut() {
     // Add flag that left/right modifier key has been pressed.
     // See https://github.com/TermiT/Flycut/pull/18 for details.
     let cmdFlag = CGEventFlags(rawValue: UInt64(KeyChord.pasteKeyModifiers.rawValue) | 0x000008)
@@ -136,6 +191,7 @@ class Clipboard {
     keyVUp?.flags = cmdFlag
     keyVDown?.post(tap: .cgSessionEventTap)
     keyVUp?.post(tap: .cgSessionEventTap)
+    NSLog("Local paste shortcut posted to the restored target")
   }
 
   func clear() {

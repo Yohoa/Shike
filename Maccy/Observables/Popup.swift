@@ -81,7 +81,11 @@ class Popup {
     AppState.shared.appDelegate?.panel.open(height: height, at: popupPosition)
   }
 
+  @MainActor
   func reset() {
+    for item in AppState.shared.history.all {
+      item.cleanupPreviewImage()
+    }
     state = .toggle
     KeyboardShortcuts.enable(.popup)
   }

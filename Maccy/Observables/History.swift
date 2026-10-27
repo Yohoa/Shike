@@ -160,6 +160,7 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
       if let removedItemIndex {
         cleanup(all[removedItemIndex])
       }
+      sessionLog.removeValues { $0 == existingHistoryItem }
       Storage.shared.context.delete(existingHistoryItem)
       if let removedItemIndex {
         all.remove(at: removedItemIndex)

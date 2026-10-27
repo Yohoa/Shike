@@ -1,4 +1,4 @@
-import AppKit.NSImage
+import AppKit
 
 // Based on https://stackoverflow.com/questions/73062803/resizing-nsimage-keeping-aspect-ratio-reducing-the-image-size-while-trying-to-sc.
 extension NSImage {
@@ -24,13 +24,12 @@ extension NSImage {
       return self
     }
 
-    return NSImage(size: newSize, flipped: false) { destRect in
-      if let context = NSGraphicsContext.current {
-        context.imageInterpolation = .high
-        self.draw(in: destRect, from: NSRect.zero, operation: .copy, fraction: 1)
-      }
-
-      return true
-    }
+    // Rasterize now: a drawing-handler image would retain the full-size source.
+    let resized = NSImage(size: newSize)
+    resized.lockFocus()
+    defer { resized.unlockFocus() }
+    NSGraphicsContext.current?.imageInterpolation = .high
+    draw(in: NSRect(origin: .zero, size: newSize), from: .zero, operation: .copy, fraction: 1)
+    return resized
   }
 }

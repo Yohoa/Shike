@@ -20,6 +20,9 @@ struct FooterView: View {
 
   var body: some View {
     VStack(spacing: 0) {
+      NotchLauncher()
+      ImageToolsBar()
+      MultiDragBar()
       Divider()
         .padding(.horizontal, Popup.horizontalSeparatorPadding)
         .padding(.bottom, Popup.verticalSeparatorPadding)

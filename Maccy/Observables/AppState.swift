@@ -8,7 +8,7 @@ import SwiftUI
 class AppState: Sendable {
   static let shared = AppState(history: History.shared, footer: Footer())
 
-  let multiSelectionEnabled = false
+  let multiSelectionEnabled = true
 
   var appDelegate: AppDelegate?
   var popup: Popup
@@ -56,7 +56,14 @@ class AppState: Sendable {
     if !navigator.selection.isEmpty {
       if navigator.isMultiSelectInProgress {
         navigator.isManualMultiSelect = false
-        history.startPasteStack(selection: &navigator.selection, flags: modifierFlags)
+        if Clipboard.shared.copyCombined(navigator.selection.items.map(\.item)) {
+          popup.close()
+          let action = HistoryItemAction(modifierFlags)
+          if action == .paste || action == .pasteWithoutFormatting
+            || (action == .unknown && Defaults[.pasteByDefault]) { Clipboard.shared.paste() }
+        } else {
+          NSSound.beep()
+        }
       } else {
         history.select(navigator.selection.first, flags: modifierFlags)
       }
@@ -71,6 +78,22 @@ class AppState: Sendable {
       Clipboard.shared.copyInMaccy(history.searchQuery)
       history.searchQuery = ""
     }
+  }
+
+  @MainActor
+  func pasteSelectionFromKeyboard(plainText: Bool) {
+    guard !navigator.selection.isEmpty else {
+      select(flags: plainText ? .shift : [])
+      return
+    }
+    guard Clipboard.shared.copyCombined(navigator.selection.items.map(\.item), plainText: plainText) else {
+      NSSound.beep()
+      return
+    }
+    navigator.isManualMultiSelect = false
+    history.interruptPasteStack()
+    popup.close()
+    Clipboard.shared.paste()
   }
 
   @MainActor
@@ -110,26 +133,34 @@ class AppState: Sendable {
     if settingsWindowController == nil {
       settingsWindowController = SettingsWindowController(
         panes: [
+          Settings.Pane(identifier: Settings.PaneIdentifier(rawValue: "notch"),
+                        title: NSLocalizedString("Notch", comment: "Notch settings"),
+                        toolbarIcon: NSImage(systemSymbolName: "capsule", accessibilityDescription: nil)!) { NotchSettings().settingsPaneWidth() },
+          Settings.Pane(
+            identifier: Settings.PaneIdentifier(rawValue: "imageTools"),
+            title: NSLocalizedString("Image Tools", comment: "Image tools settings"),
+            toolbarIcon: NSImage(systemSymbolName: "camera.viewfinder", accessibilityDescription: nil)!
+          ) { ImageToolsSettings().settingsPaneWidth() },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.general,
             title: NSLocalizedString("Title", tableName: "GeneralSettings", comment: ""),
             toolbarIcon: NSImage.gearshape!
           ) {
-            GeneralSettingsPane()
+            GeneralSettingsPane().settingsPaneWidth()
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.storage,
             title: NSLocalizedString("Title", tableName: "StorageSettings", comment: ""),
             toolbarIcon: NSImage.externaldrive!
           ) {
-            StorageSettingsPane()
+            StorageSettingsPane().settingsPaneWidth()
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.appearance,
             title: NSLocalizedString("Title", tableName: "AppearanceSettings", comment: ""),
             toolbarIcon: NSImage.paintpalette!
           ) {
-            AppearanceSettingsPane()
+            AppearanceSettingsPane().settingsPaneWidth()
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.pins,
@@ -139,20 +170,21 @@ class AppState: Sendable {
             PinsSettingsPane()
               .environment(self)
               .modelContainer(Storage.shared.container)
+              .settingsPaneWidth()
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.ignore,
             title: NSLocalizedString("Title", tableName: "IgnoreSettings", comment: ""),
             toolbarIcon: NSImage.nosign!
           ) {
-            IgnoreSettingsPane()
+            IgnoreSettingsPane().settingsPaneWidth()
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.advanced,
             title: NSLocalizedString("Title", tableName: "AdvancedSettings", comment: ""),
             toolbarIcon: NSImage.gearshape2!
           ) {
-            AdvancedSettingsPane()
+            AdvancedSettingsPane().settingsPaneWidth()
           }
         ]
       )
@@ -164,4 +196,9 @@ class AppState: Sendable {
   func quit() {
     NSApp.terminate(self)
   }
+}
+
+private extension View {
+  /// Eight toolbar tabs need about this much width; narrower panes pushed tabs into the "»" overflow.
+  func settingsPaneWidth() -> some View { frame(minWidth: 820, alignment: .top) }
 }

@@ -1,11 +1,12 @@
 import AppKit
 
 struct Accessibility {
-  private static var allowed: Bool { AXIsProcessTrustedWithOptions(nil) }
+  // Pasting posts keyboard events; it does not inspect other apps' AX trees.
+  // AXIsProcessTrusted can be false in a sandbox despite PostEvent consent.
+  static var allowed: Bool { CGPreflightPostEventAccess() }
 
-  static func check() {
-    guard !allowed else {
-      return
-    }
+  @discardableResult
+  static func check() -> Bool {
+    allowed || CGRequestPostEventAccess()
   }
 }

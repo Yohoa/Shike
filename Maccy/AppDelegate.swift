@@ -24,6 +24,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var statusItemVisibilityObserver: NSKeyValueObservation?
 
   func applicationWillFinishLaunching(_ notification: Notification) { // swiftlint:disable:this function_body_length
+    // Safety net: if a SwiftUI-hosted window ever loops its layout (seen once after OCR), AppKit logs
+    // "Marking window … as needing …" instead of aborting the whole app.
+    UserDefaults.standard.register(defaults: ["NSWindowAssertWhenDisplayCycleLimitReached": false])
     #if DEBUG
     if CommandLine.arguments.contains("enable-testing") {
       SPUUpdater(hostBundle: Bundle.main,
@@ -91,6 +94,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ aNotification: Notification) {
+    ImageToolsModule.shared.start()
+    NotchModule.shared.start()
     migrateUserDefaults()
     disableUnusedGlobalHotkeys()
 

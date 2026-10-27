@@ -46,6 +46,7 @@ class NavigationManager { // swiftlint:disable:this type_body_length
     return leadSelection != nil && leadSelection == history.pasteStack?.id
   }
 
+  var pointerSelectionEnabled = true
   var isManualMultiSelect: Bool = false
   var isMultiSelectInProgress: Bool {
     return isManualMultiSelect || selection.count > 1
@@ -54,7 +55,8 @@ class NavigationManager { // swiftlint:disable:this type_body_length
   var hoverSelectionWhileKeyboardNavigating: UUID?
   var isKeyboardNavigating: Bool = true {
     didSet {
-      if !isKeyboardNavigating && !isMultiSelectInProgress,
+      if !isKeyboardNavigating && !isMultiSelectInProgress && pointerSelectionEnabled,
+         NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty,
          let hoverSelection = hoverSelectionWhileKeyboardNavigating {
         hoverSelectionWhileKeyboardNavigating = nil
         select(id: hoverSelection)
@@ -89,19 +91,17 @@ class NavigationManager { // swiftlint:disable:this type_body_length
     var newSelectionState = selection
 
     if item.isSelected {
-      if newSelectionState.count <= 1 {
-        isManualMultiSelect = !isManualMultiSelect
-      } else {
-        newSelectionState.remove(item)
-      }
+      newSelectionState.remove(item)
     } else {
       newSelectionState.add(item)
     }
 
     withTransaction(Transaction()) {
+      isManualMultiSelect = true
       selection = newSelectionState
-      leadHistoryItem = item
+      leadHistoryItem = newSelectionState.items.last
       scrollTarget = leadSelection
+      footer.selectedItem = nil
     }
   }
 

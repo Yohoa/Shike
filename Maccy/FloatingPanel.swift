@@ -74,6 +74,11 @@ class FloatingPanel<Content: View>: NSPanel, NSWindowDelegate {
   }
 
   func open(height: CGFloat, at popupPosition: PopupPosition = Defaults[.popupPosition]) {
+    Clipboard.shared.capturePasteTarget()
+    // Reopening while the close fade runs cancels it.
+    fadeGeneration += 1
+    alphaValue = 1
+    ignoresMouseEvents = false
     let size = Defaults[.windowSize]
     let miniumHeight: CGFloat = AppState.shared.popup.minimumHeight
     let finalWidth = min(frame.width, size.width)
@@ -206,7 +211,43 @@ class FloatingPanel<Content: View>: NSPanel, NSWindowDelegate {
     }
   }
 
+  private var fadeGeneration = 0
+  private var finishing = false
+
   override func close() {
+    if finishing { return }  // super.close() resigns key, which calls close() again
+    // No fade while image tools run (screenshot/OCR): their result is added to history and the busy
+    // indicator disappears in the same turn, and resizing a still-visible, fading panel made SwiftUI's
+    // animated window sizing loop until AppKit aborted ("Update Constraints in Window" limit).
+    guard isPresented, isVisible, !ImageToolsModule.shared.busy,
+          !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+      finishClose()
+      return
+    }
+    // Fade out, then close. State flips now so a quick reopen or paste sees the popup as closed.
+    isPresented = false
+    statusBarButton?.isHighlighted = false
+    ignoresMouseEvents = true
+    fadeGeneration += 1
+    let generation = fadeGeneration
+    NSAnimationContext.runAnimationGroup({ context in
+      context.duration = 0.16
+      context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+      animator().alphaValue = 0
+    }, completionHandler: { [weak self] in
+      MainActor.assumeIsolated {
+        guard let self, self.fadeGeneration == generation else { return }
+        self.finishClose()
+        self.alphaValue = 1
+        self.ignoresMouseEvents = false
+      }
+    })
+  }
+
+  private func finishClose() {
+    fadeGeneration += 1  // a pending fade completion must not close a second time
+    finishing = true
+    defer { finishing = false }
     super.close()
     AppState.shared.preview.state = .closed
     isPresented = false

@@ -32,6 +32,74 @@ class HistoryItemDecoratorTests: XCTestCase {
     Defaults[.highlightMatch] = savedHighlightMatch
   }
 
+  func testDecoratorIsReleasedWithoutChangingObservedProperties() {
+    let item = HistoryItem()
+    Storage.shared.context.insert(item)
+    weak var decorator: HistoryItemDecorator?
+    autoreleasepool {
+      let candidate = HistoryItemDecorator(item)
+      decorator = candidate
+    }
+    XCTAssertNil(decorator)
+  }
+
+  func testImageCleanupAllowsRegeneration() async {
+    let image = NSImage(named: "StatusBarMenuImage")!
+    let decorator = historyItemDecorator(image)
+    decorator.ensureThumbnailImage()
+    decorator.ensurePreviewImage()
+    _ = await decorator.thumbnailImageGenerationTask?.result
+    _ = await decorator.previewImageGenerationTask?.result
+    XCTAssertNotNil(decorator.thumbnailImage)
+    XCTAssertNotNil(decorator.previewImage)
+    decorator.cleanupImages()
+    XCTAssertNil(decorator.thumbnailImageGenerationTask)
+    XCTAssertNil(decorator.previewImageGenerationTask)
+    decorator.ensureThumbnailImage()
+    decorator.ensurePreviewImage()
+    _ = await decorator.thumbnailImageGenerationTask?.result
+    _ = await decorator.previewImageGenerationTask?.result
+    XCTAssertNotNil(decorator.thumbnailImage)
+    XCTAssertNotNil(decorator.previewImage)
+  }
+
+  func testResizedImageDoesNotRetainSource() {
+    weak var source: NSImage?
+    var thumbnail: NSImage?
+    autoreleasepool {
+      let image = NSImage(size: NSSize(width: 400, height: 400))
+      image.lockFocus()
+      NSColor.red.setFill()
+      NSRect(x: 0, y: 0, width: 400, height: 400).fill()
+      image.unlockFocus()
+      source = image
+      thumbnail = image.resized(to: NSSize(width: 40, height: 40))
+    }
+    XCTAssertNil(source)
+    XCTAssertEqual(thumbnail?.size, NSSize(width: 40, height: 40))
+    XCTAssertNotNil(thumbnail?.tiffRepresentation)
+  }
+
+  func testCancelledImageTasksDoNotRepopulateCaches() async {
+    let decorator = historyItemDecorator(NSImage(named: "StatusBarMenuImage")!)
+    decorator.ensureThumbnailImage()
+    decorator.ensurePreviewImage()
+    decorator.cleanupImages()
+    await Task.yield()
+    XCTAssertNil(decorator.thumbnailImage)
+    XCTAssertNil(decorator.previewImage)
+  }
+
+  func testPreviewCleanupPreservesThumbnailAndAllowsRegeneration() async {
+    let decorator = historyItemDecorator(NSImage(named: "StatusBarMenuImage")!)
+    decorator.sizeImages()
+    decorator.cleanupPreviewImage()
+    XCTAssertNotNil(decorator.thumbnailImage)
+    XCTAssertNil(decorator.previewImage)
+    let preview = await decorator.asyncGetPreviewImage()
+    XCTAssertNotNil(preview)
+  }
+
   func testString() {
     let title = "foo"
     let itemDecorator = historyItemDecorator(title)

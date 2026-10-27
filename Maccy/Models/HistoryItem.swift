@@ -234,6 +234,7 @@ class HistoryItem {
       return
     }
 
+    defer { clearDecodedImageCache() }
     let requestHandler = VNImageRequestHandler(cgImage: cgImage)
     let request = VNRecognizeTextRequest(completionHandler: recognizeTextHandler)
     request.recognitionLevel = .fast

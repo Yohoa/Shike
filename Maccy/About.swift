@@ -25,6 +25,18 @@ class About {
   private var credits: NSMutableAttributedString {
     let credits = NSMutableAttributedString(string: "",
                                             attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor])
+    credits.append(NSAttributedString(
+      string: NSLocalizedString("Raphael local build", comment: "About build") + " · 2026-10-26\n"
+        + NSLocalizedString("Memory fixes · Combined text and images", comment: "About features") + "\n"
+        + NSLocalizedString("Based on Maccy 2.7.1", comment: "About base version") + "\n\n",
+      attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor]
+    ))
+    credits.append(NSAttributedString(
+      string: NSLocalizedString(Accessibility.allowed ? "Automatic paste: allowed" : "Automatic paste: needs Accessibility permission", comment: "Paste access status") + "\n\n",
+      attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor]
+    ))
+    credits.append(NSAttributedString(string: NSLocalizedString("Optional screenshot and image tools", comment: "About image tools") + "\n\n"))
+    credits.append(NSAttributedString(string: NSLocalizedString("Optional notch clipboard shelf", comment: "About notch") + "\n\n"))
     credits.append(links)
     credits.append(NSAttributedString(string: "\n\n"))
     credits.append(kossCredits)
@@ -37,6 +49,10 @@ class About {
   @objc
   func openAbout(_ sender: NSMenuItem?) {
     NSApp.activate(ignoringOtherApps: true)
-    NSApp.orderFrontStandardAboutPanel(options: [NSApplication.AboutPanelOptionKey.credits: credits])
+    NSApp.orderFrontStandardAboutPanel(options: [
+      .applicationName: NSLocalizedString("Maccy · Raphael’s build", comment: "About title"),
+      .applicationVersion: "2.7.1 · " + String(format: NSLocalizedString("Local Fix %d", comment: "Local build version"), 9),
+      .credits: credits
+    ])
   }
 }

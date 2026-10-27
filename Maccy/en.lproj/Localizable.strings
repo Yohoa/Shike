@@ -12,3 +12,216 @@
 "clear_alert_comment" = "You can't undo this action.";
 "clear_alert_cancel" = "Cancel";
 "clear_alert_confirm" = "Clear";
+
+/* Raphael local build */
+"Multi-select" = "Multi-select";
+"Done" = "Done";
+"Select item" = "Select item";
+"Deselect item" = "Deselect item";
+"Drag 1 item" = "Drag 1 item";
+"Drag %ld items" = "Drag %ld items";
+"Drag selected text and images. Text-only selections are joined with newlines." = "Drag selected text and images. Text-only selections are joined with newlines.";
+"This selection cannot be dragged" = "This selection cannot be dragged";
+"⌘ click · Shift range" = "⌘ click · Shift range";
+"Raphael local build" = "Raphael local build";
+"Memory fixes · Text and image drag" = "Memory fixes · Text and image drag";
+"Based on Maccy 2.7.1" = "Based on Maccy 2.7.1";
+"Maccy · Raphael’s build" = "Maccy · Raphael’s build";
+"Local Fix %d" = "Local Fix %d";
+
+"Copy combined" = "Copy combined";
+"Memory fixes · Combined text and images" = "Memory fixes · Combined text and images";
+
+"Copy text" = "Copy text";
+"Drop mode" = "Drop mode";
+"Combined" = "Combined";
+"Chat attachments" = "Chat attachments";
+"Drag images, then ⌘V for text" = "Drag images, then ⌘V for text";
+
+"Shift ↑/↓ select · Enter paste · ⇧Enter text" = "Shift ↑/↓ select · Enter paste · ⇧Enter text";
+
+"Automatic paste: allowed" = "Automatic paste: allowed";
+"Automatic paste: needs Accessibility permission" = "Automatic paste: needs Accessibility permission";
+
+"Image Tools" = "Image Tools";
+
+"Optional screenshot and image tools" = "Optional screenshot and image tools";
+
+"Enable screenshot and image tools" = "Enable screenshot and image tools";
+
+"Capture, annotate, pin, recognize text or QR codes, combine images and create before/after GIFs. Processing stays on this Mac." = "Capture, annotate, pin, recognize text or QR codes, combine images and create before/after GIFs. Processing stays on this Mac.";
+
+"Use the image menu or right-click an image. Select multiple images in order to combine them." = "Use the image menu or right-click an image. Select multiple images in order to combine them.";
+
+"Screenshot" = "Screenshot";
+
+"Screenshot + OCR" = "Screenshot + OCR";
+
+"Capture region…" = "Capture region…";
+
+"Capture window…" = "Capture window…";
+
+"Capture" = "Capture";
+
+"Annotate…" = "Annotate…";
+
+"Pin to Screen" = "Pin to Screen";
+
+"Run OCR" = "Run OCR";
+
+"Scan QR Code" = "Scan QR Code";
+
+"Combine with…" = "Combine with…";
+
+"Combine vertically…" = "Combine vertically…";
+
+"Before / After GIF…" = "Before / After GIF…";
+
+"Choose images to combine with the selected image." = "Choose images to combine with the selected image.";
+
+"Select exactly two images for a before/after GIF." = "Select exactly two images for a before/after GIF.";
+
+"Close an image tools window before opening another." = "Close an image tools window before opening another.";
+
+"Recognized text is copied. Review it before pasting." = "Recognized text is copied. Review it before pasting.";
+
+"Save to history" = "Save to history";
+
+"Opacity" = "Opacity";
+
+"Tool" = "Tool";
+
+"Color" = "Color";
+
+"Width" = "Width";
+
+"Height" = "Height";
+
+"Pen" = "Pen";
+
+"Arrow" = "Arrow";
+
+"Rectangle" = "Rectangle";
+
+"Ellipse" = "Ellipse";
+
+"Highlighter" = "Highlighter";
+
+"Text" = "Text";
+
+"Numbered step" = "Numbered step";
+
+"Redact" = "Redact";
+
+"Crop" = "Crop";
+
+"Undo" = "Undo";
+
+"Apply crop" = "Apply crop";
+
+"Text to place on the image" = "Text to place on the image";
+
+"Rotate 90°" = "Rotate 90°";
+
+"Flip horizontally" = "Flip horizontally";
+
+"Grayscale" = "Grayscale";
+
+"Resize" = "Resize";
+
+"Keep aspect ratio" = "Keep aspect ratio";
+
+"Apply" = "Apply";
+
+"Save…" = "Save…";
+
+"Copy image" = "Copy image";
+
+"Drag on the image to annotate. Changes create a new image." = "Drag on the image to annotate. Changes create a new image.";
+
+"Choose Crop and drag a rectangle on the image first." = "Choose Crop and drag a rectangle on the image first.";
+
+"Drag to capture · Esc to cancel" = "Drag to capture · Esc to cancel";
+
+"The image could not be opened." = "The image could not be opened.";
+
+"The result is too large. Use smaller images (maximum 32 megapixels)." = "The result is too large. Use smaller images (maximum 32 megapixels).";
+
+"No text was found in this image." = "No text was found in this image.";
+
+"No QR code was found in this image." = "No QR code was found in this image.";
+
+"The image could not be exported." = "The image could not be exported.";
+
+"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again.";
+
+"Cancel" = "Cancel";
+
+"Notch" = "Notch";
+
+"Maccy Notch" = "Maccy Notch";
+
+"Enable notch shelf" = "Enable notch shelf";
+
+"A small clipboard shelf at the top of your screen. Click to expand, drag files in, or drag clipboard items out. Displays without a camera notch get a floating pill." = "A small clipboard shelf at the top of your screen. Click to expand, drag files in, or drag clipboard items out. Displays without a camera notch get a floating pill.";
+
+"Display" = "Display";
+
+"Automatic (prefer camera notch)" = "Automatic (prefer camera notch)";
+
+"Open notch shelf" = "Open notch shelf";
+
+"Show notch shelf" = "Show notch shelf";
+
+"Hide notch" = "Hide notch";
+
+"Battery updates use system notifications. Turning this off removes the window, shortcut and observers. No extra permissions are needed for the shelf." = "Battery updates use system notifications. Turning this off removes the window, shortcut and observers. No extra permissions are needed for the shelf.";
+
+"Click to open, or drag files here" = "Click to open, or drag files here";
+
+"Collapse notch" = "Collapse notch";
+
+"Connected to power" = "Connected to power";
+
+"On battery" = "On battery";
+
+"Drop to add to Maccy" = "Drop to add to Maccy";
+
+"Recent clipboard" = "Recent clipboard";
+
+"Open Maccy" = "Open Maccy";
+
+"Copy something or drop files here to begin." = "Copy something or drop files here to begin.";
+
+"Copy" = "Copy";
+
+"Paste" = "Paste";
+
+"Paste plain text" = "Paste plain text";
+
+"Click to copy · ⌘ or ⇧ click for multiple · drag to sort or out · force click to preview" = "Click to copy · ⌘ or ⇧ click for multiple · drag to sort or out · force click to preview";
+
+"Image" = "Image";
+
+"Added to Maccy" = "Added to Maccy";
+
+"Copied" = "Copied";
+
+"This selection cannot be combined. Copy files one at a time." = "This selection cannot be combined. Copy files one at a time.";
+
+"Drop at most 100 files at once." = "Drop at most 100 files at once.";
+
+"Optional notch clipboard shelf" = "Optional notch clipboard shelf";
+
+"Click to select · Enter to paste · use Image Tools for actions" = "Click to select · Enter to paste · use Image Tools for actions";
+"Preview" = "Preview";
+"Pin" = "Pin";
+"Unpin" = "Unpin";
+"Show in Finder" = "Show in Finder";
+"Delete" = "Delete";
+"Delete Selected" = "Delete Selected";
+"OCR and QR results" = "OCR and QR results";
+"Copy to clipboard" = "Copy to clipboard";
+"Copy and show in a window" = "Copy and show in a window";
+"Text copied (%d characters)" = "Text copied (%d characters)";
+"Show on all displays" = "Show on all displays";
