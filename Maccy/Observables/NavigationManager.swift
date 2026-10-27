@@ -32,6 +32,22 @@ class NavigationManager { // swiftlint:disable:this type_body_length
     didSet {
       guard oldValue?.id != leadHistoryItem?.id else { return }
 
+      // Announce the visual selection change, keeping repeated navigation updates concise.
+      if let item = leadHistoryItem {
+        announceForAccessibility {
+          var parts = [item.hasImage ?
+                       NSLocalizedString("history_item_image_accessibility_generic", comment: "") :
+                       item.title]
+          if let application = item.application {
+            parts.append(application)
+          }
+          if item.isPinned {
+            parts.append(NSLocalizedString("history_item_pinned_accessibility_value", comment: ""))
+          }
+          return parts.joined(separator: ", ")
+        }
+      }
+
       let preview = AppState.shared.preview
       if leadHistoryItem != nil {
         preview.resetAutoOpenSuppression()
@@ -51,16 +67,25 @@ class NavigationManager { // swiftlint:disable:this type_body_length
   var isMultiSelectInProgress: Bool {
     return isManualMultiSelect || selection.count > 1
   }
+  var isDragAndDropInProgress: Bool = false {
+    didSet {
+      updateSelectionState()
+    }
+  }
 
   var hoverSelectionWhileKeyboardNavigating: UUID?
   var isKeyboardNavigating: Bool = true {
     didSet {
-      if !isKeyboardNavigating && !isMultiSelectInProgress && pointerSelectionEnabled,
-         NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty,
-         let hoverSelection = hoverSelectionWhileKeyboardNavigating {
-        hoverSelectionWhileKeyboardNavigating = nil
-        select(id: hoverSelection)
-      }
+      updateSelectionState()
+    }
+  }
+
+  private func updateSelectionState() {
+    if !isKeyboardNavigating && !isMultiSelectInProgress && !isDragAndDropInProgress && pointerSelectionEnabled,
+       NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty,
+       let hoverSelection = hoverSelectionWhileKeyboardNavigating {
+      hoverSelectionWhileKeyboardNavigating = nil
+      select(id: hoverSelection)
     }
   }
 
@@ -89,17 +114,22 @@ class NavigationManager { // swiftlint:disable:this type_body_length
 
   func addToSelection(item: HistoryItemDecorator) {
     var newSelectionState = selection
+    var newLeadItem = leadHistoryItem
 
     if item.isSelected {
       newSelectionState.remove(item)
+      if item == newLeadItem {
+        newLeadItem = newSelectionState.items.last ?? leadHistoryItem
+      }
     } else {
       newSelectionState.add(item)
+      newLeadItem = item
     }
 
     withTransaction(Transaction()) {
       isManualMultiSelect = true
       selection = newSelectionState
-      leadHistoryItem = newSelectionState.items.last
+      leadHistoryItem = newLeadItem
       scrollTarget = leadSelection
       footer.selectedItem = nil
     }
@@ -113,7 +143,7 @@ class NavigationManager { // swiftlint:disable:this type_body_length
     var newSelectionState = selection
 
     if isRange {
-      if let itemRange = history.visibleItems.between(
+      if let itemRange = history.visibleBetween(
         from: fromItem,
         to: toItem,
         inOrder: false

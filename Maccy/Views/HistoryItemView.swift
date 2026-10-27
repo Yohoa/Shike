@@ -7,13 +7,6 @@ struct HistoryItemView: View {
   var next: HistoryItemDecorator?
   var index: Int
 
-  private var visualIndex: Int? {
-    if appState.navigator.isMultiSelectInProgress && item.selectionIndex >= 0 {
-      return item.selectionIndex
-    }
-    return nil
-  }
-
   private var selectionAppearance: SelectionAppearance {
     let previousSelected = previous?.isSelected ?? false
     let nextSelected = next?.isSelected ?? false
@@ -45,6 +38,9 @@ struct HistoryItemView: View {
     return [item.item]
   }
 
+  private var pinReorderable: Bool {
+    item.isPinned && appState.history.searchQuery.isEmpty
+  }
   var body: some View {
     ListItemView(
       id: item.id,
@@ -55,11 +51,14 @@ struct HistoryItemView: View {
       attributedTitle: item.attributedTitle,
       shortcuts: item.shortcuts,
       isSelected: item.isSelected,
-      selectionIndex: visualIndex,
-      selectionAppearance: selectionAppearance
+      selectionIndex: item.multiSelectionIndex,
+      selectionAppearance: selectionAppearance,
+      accessibilityLabel: item.accessibilityLabel
     ) {
       Text(verbatim: item.title)
     }
+    .accessibilityIdentifier("copy-history-item")
+    .buttonAction { handleClick(NSEvent.ModifierFlags.currentModifierFlags) }
     .padding(.leading, appState.navigator.isManualMultiSelect ? 24 : 0)
     .overlay(alignment: .leading) {
       if appState.navigator.isManualMultiSelect {
@@ -75,8 +74,11 @@ struct HistoryItemView: View {
       }
     }
     .overlay {
-      HistoryNativeDragHandle(items: dragItems, onClick: handleClick,
-                              excludedLeadingWidth: appState.navigator.isManualMultiSelect ? 24 : 0, chatMode: chatMode)
+      // Pinned rows keep 2.8's drag-to-reorder; the native handle would swallow that drag.
+      if !pinReorderable {
+        HistoryNativeDragHandle(items: dragItems, onClick: handleClick,
+                                excludedLeadingWidth: appState.navigator.isManualMultiSelect ? 24 : 0, chatMode: chatMode)
+      }
     }
     .help(ImageToolsModule.shared.enabled ? NSLocalizedString("Click to select · Enter to paste · use Image Tools for actions", comment: "Image tools selection") : "")
     .onAppear {

@@ -3,24 +3,30 @@ import KeyboardShortcuts
 import SwiftUI
 
 private struct KeyboardShortcutHelpModifier: ViewModifier {
-  let name: KeyboardShortcuts.Name
+  // A nil name produces help text without a keyboard shortcut substitution.
+  let name: KeyboardShortcuts.Name?
   let key: String
   let tableName: String
   let comment: String = ""
   let replacementKey: String
 
+  // Use the same localized description for visual help and the accessibility label.
+  private var resolvedText: Text? {
+    let localized = NSLocalizedString(key, tableName: tableName, comment: comment)
+    guard let name else {
+      return Text(localized)
+    }
+    guard let shortcut = KeyboardShortcuts.Shortcut(name: name) else {
+      return nil
+    }
+    return Text(localized.replacingOccurrences(of: "{\(replacementKey)}", with: shortcut.description))
+  }
+
   func body(content: Content) -> some View {
-    if let shortcut = KeyboardShortcuts.Shortcut(name: name) {
+    if let resolvedText {
       content
-        .help(
-          Text(
-            NSLocalizedString(key, tableName: tableName, comment: comment)
-              .replacingOccurrences(
-                of: "{\(replacementKey)}",
-                with: shortcut.description
-              )
-          )
-        )
+        .help(resolvedText)
+        .accessibilityLabel(resolvedText)
     } else {
       content
     }
@@ -28,8 +34,6 @@ private struct KeyboardShortcutHelpModifier: ViewModifier {
 }
 
 struct ToolbarButton<Label: View>: View {
-  @Environment(AppState.self) private var appState
-
   let action: @MainActor () -> Void
   let label: () -> Label
 
@@ -39,18 +43,14 @@ struct ToolbarButton<Label: View>: View {
     }
     .buttonStyle(.plain)
     .frame(height: 23)
-    .onHover(perform: { inside in
-      if let window = appState.appDelegate?.panel {
-        window.isMovableByWindowBackground = !inside
-      }
-    })
+    .excludeFromWindowMovableByBackground()
   }
 
   func shortcutKeyHelp(
-    name: KeyboardShortcuts.Name,
+    name: KeyboardShortcuts.Name? = nil,
     key: String,
     tableName: String,
-    replacementKey: String
+    replacementKey: String = ""
   ) -> some View {
     self.modifier(
       KeyboardShortcutHelpModifier(
@@ -66,6 +66,7 @@ struct ToolbarButton<Label: View>: View {
 
 struct ToolbarView: View {
   @State private var appState = AppState.shared
+  @State private var editingItem: HistoryItemDecorator?
 
   @Namespace var unionNamespace
 
@@ -101,6 +102,17 @@ struct ToolbarView: View {
     return text.isEmpty ? nil : item.title
   }
 
+  private var editItemEnabled: Bool {
+    guard appState.navigator.selection.count == 1 else { return false }
+    guard let item = appState.navigator.selection.first else { return false }
+    return item.hasPlainText || item.hasRichText || item.hasImage
+  }
+
+  private var editableItem: HistoryItemDecorator? {
+    guard editItemEnabled else { return nil }
+    return appState.navigator.selection.first
+  }
+
   var body: some View {
     HStack {
       if !appState.navigator.selection.isEmpty {
@@ -113,7 +125,7 @@ struct ToolbarView: View {
           } label: {
             Image(systemName: "text.viewfinder")
           }
-          .help(Text("CopyExtractedText", tableName: "PreviewItemView"))
+          .shortcutKeyHelp(key: "CopyExtractedText", tableName: "PreviewItemView")
           .disabled(selectedImageText == nil)
         }
 
@@ -123,7 +135,7 @@ struct ToolbarView: View {
           }
         } label: {
           if (appState.navigator.selection.items.allSatisfy { $0.isPinned }) {
-            Image(systemName: "pin.slash")
+            Image(systemName: "pin.slash.fill")
           } else {
             Image(systemName: "pin")
           }
@@ -135,6 +147,16 @@ struct ToolbarView: View {
           replacementKey: "pinKey"
         )
         .disabled(pinActionDisabled)
+
+        ToolbarButton {
+          appState.isEditingItem = true
+          editingItem = editableItem
+        } label: {
+          Image(systemName: "pencil.and.list.clipboard")
+        }
+        .shortcutKeyHelp(key: "EditItem", tableName: "PreviewItemView")
+        .disabled(!editItemEnabled)
+        .accessibilityIdentifier("edit-item")
 
         ToolbarButton {
           appState.deleteSelection()
@@ -155,7 +177,18 @@ struct ToolbarView: View {
         } label: {
           Image(systemName: "stop")
         }
+        .accessibilityLabel(Text("toolbar_remove_paste_stack_action"))
       }
     }
+    .sheet(item: $editingItem, onDismiss: {
+      finishEditingPinnedItem()
+    }) { item in
+      ItemEditorView(for: item)
+    }
+  }
+
+  private func finishEditingPinnedItem() {
+    editingItem = nil
+    appState.isEditingItem = false
   }
 }

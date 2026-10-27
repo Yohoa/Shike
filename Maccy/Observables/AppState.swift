@@ -17,6 +17,11 @@ class AppState: Sendable {
   var navigator: NavigationManager
   var preview: SlideoutController
 
+  var isEditingItem: Bool = false
+  var suppressPopupAutoClose: Bool {
+    return navigator.isDragAndDropInProgress || isEditingItem
+  }
+
   var searchVisible: Bool {
     if !Defaults[.showSearch] { return false }
     switch Defaults[.searchVisibility] {
@@ -26,7 +31,7 @@ class AppState: Sendable {
   }
 
   var menuIconText: String {
-    var title = history.unpinnedItems.first?.text.shortened(to: 100)
+    var title = history.firstUnpinnedItem?.text.shortened(to: 100)
       .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     title.unicodeScalars.removeAll(where: CharacterSet.newlines.contains)
     return title.shortened(to: 20)
@@ -114,7 +119,7 @@ class AppState: Sendable {
   @MainActor
   func deleteSelection() {
     guard let leadItem = navigator.leadHistoryItem else { return }
-    let nextUnselectedItem = history.visibleItems.nearest(to: leadItem) { !$0.isSelected }
+    let nextUnselectedItem = history.nearestVisible(to: leadItem) { !$0.isSelected }
 
     withTransaction(Transaction()) {
       navigator.selection.forEach { _, item in
@@ -131,6 +136,20 @@ class AppState: Sendable {
   @MainActor
   func openPreferences() { // swiftlint:disable:this function_body_length
     if settingsWindowController == nil {
+      let generalTitle = NSLocalizedString("Title", tableName: "GeneralSettings", comment: "")
+      let storageTitle = NSLocalizedString("Title", tableName: "StorageSettings", comment: "")
+      let appearanceTitle = NSLocalizedString("Title", tableName: "AppearanceSettings", comment: "")
+      let ignoreTitle = NSLocalizedString("Title", tableName: "IgnoreSettings", comment: "")
+      let advancedTitle = NSLocalizedString("Title", tableName: "AdvancedSettings", comment: "")
+      let toolbarTitles = [generalTitle, storageTitle, appearanceTitle, ignoreTitle, advancedTitle]
+      let titleAttributes: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]
+      let titleWidth = toolbarTitles.reduce(CGFloat.zero) {
+        $0 + ($1 as NSString).size(withAttributes: titleAttributes).width
+      }
+      let toolbarItemSpacing: CGFloat = 24
+      let toolbarEdgeSpacing: CGFloat = 40
+      let toolbarWidth = titleWidth + CGFloat(toolbarTitles.count) * toolbarItemSpacing + toolbarEdgeSpacing
+      let minimumWidth = max(500, ceil(toolbarWidth))
       settingsWindowController = SettingsWindowController(
         panes: [
           Settings.Pane(identifier: Settings.PaneIdentifier(rawValue: "notch"),
@@ -143,48 +162,43 @@ class AppState: Sendable {
           ) { ImageToolsSettings().settingsPaneWidth() },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.general,
-            title: NSLocalizedString("Title", tableName: "GeneralSettings", comment: ""),
+            title: generalTitle,
             toolbarIcon: NSImage.gearshape!
           ) {
-            GeneralSettingsPane().settingsPaneWidth()
+            GeneralSettingsPane()
+              .frame(minWidth: minimumWidth)
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.storage,
-            title: NSLocalizedString("Title", tableName: "StorageSettings", comment: ""),
+            title: storageTitle,
             toolbarIcon: NSImage.externaldrive!
           ) {
-            StorageSettingsPane().settingsPaneWidth()
+            StorageSettingsPane()
+              .frame(minWidth: minimumWidth)
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.appearance,
-            title: NSLocalizedString("Title", tableName: "AppearanceSettings", comment: ""),
+            title: appearanceTitle,
             toolbarIcon: NSImage.paintpalette!
           ) {
-            AppearanceSettingsPane().settingsPaneWidth()
-          },
-          Settings.Pane(
-            identifier: Settings.PaneIdentifier.pins,
-            title: NSLocalizedString("Title", tableName: "PinsSettings", comment: ""),
-            toolbarIcon: NSImage.pincircle!
-          ) {
-            PinsSettingsPane()
-              .environment(self)
-              .modelContainer(Storage.shared.container)
-              .settingsPaneWidth()
+            AppearanceSettingsPane()
+              .frame(minWidth: minimumWidth)
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.ignore,
-            title: NSLocalizedString("Title", tableName: "IgnoreSettings", comment: ""),
+            title: ignoreTitle,
             toolbarIcon: NSImage.nosign!
           ) {
-            IgnoreSettingsPane().settingsPaneWidth()
+            IgnoreSettingsPane()
+              .frame(minWidth: minimumWidth)
           },
           Settings.Pane(
             identifier: Settings.PaneIdentifier.advanced,
-            title: NSLocalizedString("Title", tableName: "AdvancedSettings", comment: ""),
+            title: advancedTitle,
             toolbarIcon: NSImage.gearshape2!
           ) {
-            AdvancedSettingsPane().settingsPaneWidth()
+            AdvancedSettingsPane()
+              .frame(minWidth: minimumWidth)
           }
         ]
       )

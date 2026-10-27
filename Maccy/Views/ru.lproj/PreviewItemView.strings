@@ -5,6 +5,9 @@
 "PinKey" = "Нажмите {pinKey}, чтобы прикрепить.";
 "UnpinKey" = "Нажмите {pinKey}, чтобы открепить.";
 "DeleteKey" = "Нажмите {deleteKey}, чтобы удалить.";
-"PreviewKey" = "Нажмите {previewKey} для переключения предпросмотра.";
+"OpenPreview" = "Нажмите {previewKey}, чтобы показать предпросмотр.";
+"ClosePreview" = "Нажмите {previewKey}, чтобы скрыть предпросмотр.";
 "Dimensions" = "Размеры:";
+"Size" = "Размер:";
 "CopyExtractedText" = "Скопировать извлеченный текст.";
+"EditItem" = "Редактировать элемент";

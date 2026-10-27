@@ -6,6 +6,8 @@ import Sauce
 
 @Observable
 class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
+  private static let previewMaxParagraphSize = 10_000
+
   static func == (lhs: HistoryItemDecorator, rhs: HistoryItemDecorator) -> Bool {
     return lhs.id == rhs.id
   }
@@ -40,18 +42,24 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
   }
 
   var hasImage: Bool { item.imageData != nil }
+  var hasFileURLs: Bool { !item.fileURLs.isEmpty }
+  var hasPlainText: Bool { item.text != nil }
+  var hasRichText: Bool { item.rtf != nil || item.html != nil }
 
   var previewImageGenerationTask: Task<(), Error>?
   var thumbnailImageGenerationTask: Task<(), Error>?
   var previewImage: NSImage?
-  var previewText: String {
-    item.previewableText
-  }
+  private(set) var previewText = SizedString("")
   var thumbnailImage: NSImage?
   var applicationImage: ApplicationImage
 
+  @ObservationIgnored
+  private(set) lazy var imageSize: String? = item.imageData.map {
+    ByteCountFormatter.string(fromByteCount: Int64($0.count), countStyle: .file)
+  }
+
   // 10k characters seems to be more than enough on large displays
-  var text: String { previewText.shortened(to: 10_000) }
+  var text: String { previewText.string.shortened(to: 10_000) }
 
   var isPinned: Bool { item.pin != nil }
   var isUnpinned: Bool { item.pin == nil }
@@ -65,6 +73,46 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
 
   private(set) var item: HistoryItem
 
+  var multiSelectionIndex: Int? {
+    guard selectionIndex >= 0, AppState.shared.navigator.isMultiSelectInProgress else {
+      return nil
+    }
+    return selectionIndex
+  }
+
+  // Describe the complete item independently of its potentially truncated visual content.
+  var accessibilityLabel: String {
+    var parts: [String] = []
+    if hasImage, let image = item.image {
+      let size = image.pixelSize
+      parts.append(
+        String(
+          format: NSLocalizedString("history_item_image_accessibility_label_no_app", comment: ""),
+          Int(size.width),
+          Int(size.height)
+        )
+      )
+    } else {
+      parts.append(title)
+    }
+    if let application = application {
+      parts.append(application)
+    }
+    if isPinned {
+      parts.append(NSLocalizedString("history_item_pinned_accessibility_value", comment: ""))
+    }
+    if let index = multiSelectionIndex {
+      parts.append(
+        String(
+          format: NSLocalizedString("history_item_selected_accessibility_value", comment: ""),
+          index + 1,
+          AppState.shared.navigator.selection.count
+        )
+      )
+    }
+    return parts.joined(separator: ", ")
+  }
+
   init(_ item: HistoryItem, shortcuts: [KeyShortcut] = []) {
     self.item = item
     self.shortcuts = shortcuts
@@ -73,6 +121,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
 
     synchronizeItemPin()
     synchronizeItemTitle()
+    synchronizeItemText()
   }
 
   @MainActor
@@ -188,16 +237,6 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
     attributedTitle = attributedString
   }
 
-  @MainActor
-  func togglePin() {
-    if item.pin != nil {
-      item.pin = nil
-    } else {
-      let pin = HistoryItem.randomAvailablePin
-      item.pin = pin
-    }
-  }
-
   private func synchronizeItemPin() {
     _ = withObservationTracking {
       item.pin
@@ -207,6 +246,8 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
         if let pin = self.item.pin {
           self.shortcuts = KeyShortcut.create(character: pin)
         }
+        // History assigns numeric shortcuts when unpinning. Preserve them when
+        // this observation callback runs after the history has been updated.
         self.synchronizeItemPin()
       }
     }
@@ -220,6 +261,16 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
         guard let self else { return }
         self.title = self.item.title
         self.synchronizeItemTitle()
+      }
+    }
+  }
+
+  private func synchronizeItemText() {
+    previewText = withObservationTracking {
+      SizedString(item.previewableText, maxParagraphBytes: Self.previewMaxParagraphSize)
+    } onChange: { [weak self] in
+      DispatchQueue.main.async { [weak self] in
+        self?.synchronizeItemText()
       }
     }
   }

@@ -4,6 +4,7 @@ import Sparkle
 import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+  nonisolated static let isTesting = CommandLine.arguments.contains("enable-testing")
   var panel: FloatingPanel<ContentView>!
 
   @objc
@@ -17,6 +18,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     return statusItem
   }()
 
+  // Base accessibility label for the status item; kept separate from the optional
+  // dynamic `title` (recent copy text) so VoiceOver always announces something
+  // meaningful even when that preference is off or the app is disabled.
+  private func updateStatusItemAccessibilityLabel() {
+    var accessibilityLabel = NSLocalizedString("status_item_accessibility_label", comment: "")
+    if isStatusItemDisabled {
+      accessibilityLabel += " — \(NSLocalizedString("status_item_disabled_accessibility_suffix", comment: ""))"
+    }
+    statusItem.button?.setAccessibilityLabel(accessibilityLabel)
+  }
+
   private var isStatusItemDisabled: Bool {
     Defaults[.ignoreEvents] || Defaults[.enabledPasteboardTypes].isEmpty
   }
@@ -28,7 +40,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // "Marking window … as needing …" instead of aborting the whole app.
     UserDefaults.standard.register(defaults: ["NSWindowAssertWhenDisplayCycleLimitReached": false])
     #if DEBUG
-    if CommandLine.arguments.contains("enable-testing") {
+    if Self.isTesting {
       SPUUpdater(hostBundle: Bundle.main,
                  applicationBundle: Bundle.main,
                  userDriver: SPUStandardUserDriver(hostBundle: Bundle.main, delegate: nil),
@@ -80,15 +92,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       }
     }
 
+    updateStatusItemAccessibilityLabel()
+
     Task {
       for await _ in Defaults.updates(.ignoreEvents) {
         statusItem.button?.appearsDisabled = isStatusItemDisabled
+        updateStatusItemAccessibilityLabel()
       }
     }
 
     Task {
       for await _ in Defaults.updates(.enabledPasteboardTypes) {
         statusItem.button?.appearsDisabled = isStatusItemDisabled
+        updateStatusItemAccessibilityLabel()
       }
     }
   }
@@ -127,6 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
+  @MainActor
   private func migrateUserDefaults() {
     ensureMigration(key: "2024-07-01-version-2") {
       // Start 2.x from scratch.
@@ -139,16 +156,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       UserDefaults.standard.removeObject(forKey: "hideFooter")
       UserDefaults.standard.removeObject(forKey: "hideSearch")
       UserDefaults.standard.removeObject(forKey: "hideTitle")
-
-      Defaults[.migrations]["2024-07-01-version-2"] = true
     }
 
     ensureMigration(key: "2025-07-04-add-jpeg-heic") {
       var types = Defaults[.enabledPasteboardTypes]
-      if !types.intersection(StorageType.images.types).isEmpty {
+      if !types.isDisjoint(with: StorageType.images.types) {
         types.formUnion(StorageType.images.types)
       }
       Defaults[.enabledPasteboardTypes] = types
+    }
+
+    ensureMigration(key: "2026-08-12-cleanup-orphaned-history-item-contents") {
+      _ = try? Storage.shared.cleanupOrphanedContents()
+    }
+
+    ensureMigration(key: "2026-08-31-sanitize-history-item-titles") {
+      _ = try? Storage.shared.sanitizeTitles()
+    }
+
+    ensureMigration(key: "2026-09-15-remove-unpersistable-contents") {
+      _ = try? Storage.shared.removeUnpersistableContents()
     }
 
     // The following defaults are not used in Maccy 2.x
@@ -162,18 +189,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   @objc
   private func performStatusItemClick() {
-    if let event = NSApp.currentEvent {
-      let modifierFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+    let modifierFlags = (NSApp.currentEvent?.modifierFlags ?? [])
+      .union(NSEvent.modifierFlags)
+      .intersection(.deviceIndependentFlagsMask)
 
-      if modifierFlags.contains(.option) {
-        Defaults[.ignoreEvents].toggle()
+    if modifierFlags.contains(.option) {
+      Defaults[.ignoreEvents].toggle()
 
-        if modifierFlags.contains(.shift) {
-          Defaults[.ignoreOnlyNextEvent] = Defaults[.ignoreEvents]
-        }
-
-        return
+      if modifierFlags.contains(.shift) {
+        Defaults[.ignoreOnlyNextEvent] = Defaults[.ignoreEvents]
       }
+
+      return
     }
 
     panel.toggle(height: AppState.shared.popup.height, at: .statusItem)
@@ -201,7 +228,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       object: nil,
       queue: nil
     ) { notification in
-      if let name = notification.userInfo?["name"] as? KeyboardShortcuts.Name, names.contains(name) {
+      guard let name = notification.userInfo?["name"] as? KeyboardShortcuts.Name,
+            names.contains(name) else { return }
+      MainActor.assumeIsolated {
         KeyboardShortcuts.disable(name)
       }
     }

@@ -5,6 +5,9 @@
 "NumberOfCopies" = "Kopijų skaičius:";
 "PinKey" = "Paspauskite {pinKey}, kad prisegtumėte.";
 "UnpinKey" = "Paspauskite {pinKey}, kad neprisegtumėte.";
-"PreviewKey" = "Paspauskite {previewKey} peržiūrai perjungti.";
+"OpenPreview" = "Paspauskite {previewKey}, kad parodytumėte peržiūrą.";
+"ClosePreview" = "Paspauskite {previewKey}, kad paslėptumėte peržiūrą.";
 "Dimensions" = "Matmenys:";
+"Size" = "Dydis:";
 "CopyExtractedText" = "Kopijuoti išgautą tekstą.";
+"EditItem" = "Redaguoti elementą";
