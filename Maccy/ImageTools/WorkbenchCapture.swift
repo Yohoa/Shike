@@ -1,8 +1,10 @@
 import AppKit
+import OSLog
 import ScreenCaptureKit
 
 @MainActor
 final class WorkbenchCapture {
+  nonisolated static let log = Logger(subsystem: "local.raphael.Shike", category: "capture")
   private var panels: [NSPanel] = []
   private var continuation: CheckedContinuation<(NSScreen, CGRect)?, Never>?
 
@@ -42,19 +44,33 @@ final class WorkbenchCapture {
     // Like the system screenshot: freeze every display first (open menus, hover states and all), then
     // select on that still image. Nothing activates or takes focus before the pixels are captured,
     // so another app's open menu stays in the shot instead of being dismissed by our overlay.
-    let own = content.windows.filter { $0.owningApplication?.processID == ProcessInfo.processInfo.processIdentifier }
-    var frozen: [(screen: NSScreen, image: CGImage)] = []
-    for screen in NSScreen.screens {
-      guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
-            let display = content.displays.first(where: { $0.displayID == id }) else { continue }
-      let full = SCStreamConfiguration()
-      full.showsCursor = false
-      full.width = Int(screen.frame.width * screen.backingScaleFactor)
-      full.height = Int(screen.frame.height * screen.backingScaleFactor)
-      let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(display: display, excludingWindows: own),
-                                                             configuration: full)
-      frozen.append((screen, image))
+    let started = Date()
+    nonisolated(unsafe) let own = content.windows.filter { $0.owningApplication?.processID == ProcessInfo.processInfo.processIdentifier }
+    let screens = NSScreen.screens
+    // All displays at once: sequential captures made the overlay appear noticeably later on multi-display setups.
+    let images = try await withThrowingTaskGroup(of: (Int, CGImage).self) { group in
+      for (index, screen) in screens.enumerated() {
+        guard let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { continue }
+        nonisolated(unsafe) let display = content.displays.first { $0.displayID == id }
+        guard display != nil else { continue }
+        let width = Int(screen.frame.width * screen.backingScaleFactor)
+        let height = Int(screen.frame.height * screen.backingScaleFactor)
+        group.addTask {
+          let full = SCStreamConfiguration()
+          full.showsCursor = false
+          full.width = width
+          full.height = height
+          let image = try await SCScreenshotManager.captureImage(contentFilter: SCContentFilter(display: display!, excludingWindows: own),
+                                                                 configuration: full)
+          return (index, image)
+        }
+      }
+      var result: [Int: CGImage] = [:]
+      for try await (index, image) in group { result[index] = image }
+      return result
     }
+    let frozen = screens.indices.compactMap { index in images[index].map { (screen: screens[index], image: $0) } }
+    Self.log.info("froze \(frozen.count, privacy: .public) display(s) in \(Int(Date().timeIntervalSince(started) * 1000), privacy: .public) ms")
     guard !frozen.isEmpty, let (screen, rect) = await selectRegion(frozen) else { return nil }
     guard let image = frozen.first(where: { $0.screen == screen })?.image else { throw ImageWorkbenchError.invalidImage }
     let scale = CGFloat(image.width) / screen.frame.width

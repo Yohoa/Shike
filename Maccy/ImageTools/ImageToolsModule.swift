@@ -49,6 +49,7 @@ final class ImageToolsModule {
   func capture(ocr: Bool, window: Bool = false) {
     guard enabled, !busy else { return }
     busy = true
+    if ocr { Task.detached(priority: .utility) { ImageWorkbench.warmUpTextRecognition() } }
     worker = Task {
       defer { busy = false }
       do {
@@ -98,9 +99,11 @@ final class ImageToolsModule {
   }
 
   private func recognizeData(_ data: Data, qr: Bool) async throws {
+    let started = Date()
     let result = try await Task.detached(priority: .userInitiated) {
       try autoreleasepool { try ImageWorkbench.recognize(data, qr: qr) }
     }.value
+    WorkbenchCapture.log.info("recognized \(result.count, privacy: .public) chars in \(Int(Date().timeIntervalSince(started) * 1000), privacy: .public) ms")
     guard enabled, !Task.isCancelled else { return }
     store(data: Data(result.utf8), type: .string)
     Clipboard.shared.copyTextForDrag(result)

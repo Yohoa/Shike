@@ -145,14 +145,30 @@ nonisolated enum ImageWorkbench {
       guard !strings.isEmpty else { throw ImageWorkbenchError.noQR }
       return strings.joined(separator: "\n")
     }
+    let request = textRequest()
+    try handler.perform([request])
+    let strings = request.results?.compactMap { $0.topCandidates(1).first?.string } ?? []
+    guard !strings.isEmpty else { throw ImageWorkbenchError.noText }
+    return strings.joined(separator: "\n")
+  }
+
+  private static func textRequest() -> VNRecognizeTextRequest {
     let request = VNRecognizeTextRequest()
     request.recognitionLevel = .accurate
     request.usesLanguageCorrection = true
     request.automaticallyDetectsLanguage = true
     request.recognitionLanguages = ["en-US", "zh-Hans", "zh-Hant"]
-    try handler.perform([request])
-    let strings = request.results?.compactMap { $0.topCandidates(1).first?.string } ?? []
-    guard !strings.isEmpty else { throw ImageWorkbenchError.noText }
-    return strings.joined(separator: "\n")
+    return request
+  }
+
+  /// Loads the text-recognition models while the user is still selecting a region. Once macOS has
+  /// evicted them, the first `.accurate` CJK request can take seconds just to load.
+  static func warmUpTextRecognition() {
+    guard let context = CGContext(data: nil, width: 64, height: 32, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return }
+    context.setFillColor(gray: 1, alpha: 1)
+    context.fill(CGRect(x: 0, y: 0, width: 64, height: 32))
+    guard let blank = context.makeImage() else { return }
+    try? VNImageRequestHandler(cgImage: blank).perform([textRequest()])
   }
 }
