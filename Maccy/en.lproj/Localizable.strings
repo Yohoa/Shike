@@ -12,7 +12,7 @@
 "clear_alert_comment" = "You can't undo this action.";
 "clear_alert_cancel" = "Cancel";
 "clear_alert_confirm" = "Clear";
-"status_item_accessibility_label" = "Maccy — clipboard history";
+"status_item_accessibility_label" = "Shike — clipboard history";
 "status_item_disabled_accessibility_suffix" = "paused";
 "search_clear_accessibility_label" = "Clear search";
 "history_item_pin_action" = "Pin";
@@ -37,7 +37,7 @@
 "Raphael local build" = "Raphael local build";
 "Memory fixes · Text and image drag" = "Memory fixes · Text and image drag";
 "Based on Maccy 2.8.0" = "Based on Maccy 2.8.0";
-"Maccy · Raphael’s build" = "Maccy · Raphael’s build";
+"Maccy · Raphael’s build" = "拾刻 Shike · Raphael’s build";
 "Local Fix %d" = "Local Fix %d";
 
 "Copy combined" = "Copy combined";
@@ -164,13 +164,13 @@
 
 "The image could not be exported." = "The image could not be exported.";
 
-"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again.";
+"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "Allow Shike in System Settings → Privacy & Security → Screen & System Audio Recording, then try again.";
 
 "Cancel" = "Cancel";
 
 "Notch" = "Notch";
 
-"Maccy Notch" = "Maccy Notch";
+"Maccy Notch" = "Shike Notch";
 
 "Enable notch shelf" = "Enable notch shelf";
 
@@ -196,11 +196,11 @@
 
 "On battery" = "On battery";
 
-"Drop to add to Maccy" = "Drop to add to Maccy";
+"Drop to add to Maccy" = "Drop to add to Shike";
 
 "Recent clipboard" = "Recent clipboard";
 
-"Open Maccy" = "Open Maccy";
+"Open Maccy" = "Open Shike";
 
 "Copy something or drop files here to begin." = "Copy something or drop files here to begin.";
 
@@ -214,7 +214,7 @@
 
 "Image" = "Image";
 
-"Added to Maccy" = "Added to Maccy";
+"Added to Maccy" = "Added to Shike";
 
 "Copied" = "Copied";
 

@@ -19,7 +19,7 @@
 "system_settings_pane" = "「隱私權與安全性」";
 "system_preferences_name" = "「系統偏好設定」";
 "system_preferences_pane" = "「安全性和隱私權」";
-"status_item_accessibility_label" = "Maccy — 剪貼簿歷史記錄";
+"status_item_accessibility_label" = "拾刻 — 剪貼簿歷史記錄";
 "status_item_disabled_accessibility_suffix" = "已暫停";
 "search_clear_accessibility_label" = "清除搜尋";
 "history_item_pin_action" = "固定";
@@ -44,7 +44,7 @@
 "Raphael local build" = "Raphael 本機修復版";
 "Memory fixes · Text and image drag" = "記憶體修復 · 圖文多選拖出";
 "Based on Maccy 2.8.0" = "基於官方 Maccy 2.8.0";
-"Maccy · Raphael’s build" = "Maccy · Raphael 修復版";
+"Maccy · Raphael’s build" = "拾刻 · Raphael 版";
 "Local Fix %d" = "本機修復 %d";
 
 "Copy combined" = "複製組合內容";
@@ -171,13 +171,13 @@
 
 "The image could not be exported." = "無法匯出圖片。";
 
-"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "請在系統設定 → 隱私權與安全性 → 螢幕與系統音訊錄製中允許 Maccy Fixed，然後重試。";
+"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "請在系統設定 → 隱私權與安全性 → 螢幕與系統音訊錄製中允許 拾刻，然後重試。";
 
 "Cancel" = "取消";
 
 "Notch" = "瀏海";
 
-"Maccy Notch" = "Maccy 瀏海";
+"Maccy Notch" = "拾刻 瀏海";
 
 "Enable notch shelf" = "啟用瀏海剪貼簿";
 
@@ -203,11 +203,11 @@
 
 "On battery" = "正在使用電池";
 
-"Drop to add to Maccy" = "放開以新增到 Maccy";
+"Drop to add to Maccy" = "放開以新增到 拾刻";
 
 "Recent clipboard" = "最近剪貼簿";
 
-"Open Maccy" = "開啟 Maccy";
+"Open Maccy" = "開啟 拾刻";
 
 "Copy something or drop files here to begin." = "複製內容，或把檔案拖到這裡即可開始。";
 
@@ -221,7 +221,7 @@
 
 "Image" = "圖片";
 
-"Added to Maccy" = "已新增到 Maccy";
+"Added to Maccy" = "已新增到 拾刻";
 
 "Copied" = "已複製";
 
