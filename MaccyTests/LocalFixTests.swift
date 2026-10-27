@@ -1,5 +1,6 @@
 import AppKit
 import Defaults
+import KeyboardShortcuts
 import XCTest
 @testable import Maccy
 
@@ -390,4 +391,12 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
 
     return HistoryItemDecorator(item)
   }
+
+  func testScreenshotOCRDefaultsToCommandShiftOWithoutClashing() {
+    let ocr = KeyboardShortcuts.Shortcut(.o, modifiers: [.command, .shift])
+    XCTAssertEqual(KeyboardShortcuts.Name.captureOCR.initialShortcut, ocr)
+    let others: [KeyboardShortcuts.Name] = [.popup, .pin, .delete, .togglePreview, .captureRegion, .notchShelf]
+    XCTAssertFalse(others.contains { $0.initialShortcut == ocr })
+  }
+
 }

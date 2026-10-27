@@ -4,7 +4,8 @@ import SwiftUI
 
 extension KeyboardShortcuts.Name {
   static let captureRegion = Self("localCaptureRegion")
-  static let captureOCR = Self("localCaptureOCR")
+  // ⌘⇧O by default; only applied while no value is stored, so a recorded or cleared shortcut is kept.
+  static let captureOCR = Self("localCaptureOCR", initial: Shortcut(.o, modifiers: [.command, .shift]))
 }
 
 @MainActor

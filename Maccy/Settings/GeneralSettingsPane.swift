@@ -30,6 +30,7 @@ struct GeneralSettingsPane: View {
           action: { updater.checkForUpdates() },
           label: { Text("CheckNow", tableName: "GeneralSettings") }
         )
+        Button("Welcome Guide…") { WelcomeGuide.show() }
       }
 
       Settings.Section(label: { Text("Open", tableName: "GeneralSettings") }) {

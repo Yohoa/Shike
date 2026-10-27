@@ -243,3 +243,27 @@
 "Copy and show in a window" = "複製並在視窗中顯示";
 "Text copied (%d characters)" = "已複製文字（%d 個字元）";
 "Show on all displays" = "在所有顯示器上顯示";
+
+/* Welcome guide */
+"Welcome to Shike" = "歡迎使用拾刻剪貼簿";
+"A clipboard history that stays on this Mac." = "剪貼簿歷史，只保存在這台 Mac 上。";
+"not set" = "未設定";
+"Clipboard history" = "剪貼簿歷史";
+"Press %@ to open it. Enter pastes, Shift+Enter pastes plain text. ⌘-click or Shift-click to select several items." = "按 %@ 開啟。Enter 貼上，Shift+Enter 貼上純文字。⌘ 點按或 Shift 點按可多選。";
+"Notch shelf" = "瀏海剪貼簿";
+"Recent items at the top of the screen: click to expand, drag files in or items out." = "螢幕頂部顯示最近的項目：點按展開，可以把檔案拖進來，也可以把項目拖出去。";
+"Screenshots and OCR" = "截圖與文字辨識";
+"Screenshot: %@ · Screenshot + OCR: %@. Recognized text is copied. Change the shortcuts in Settings → Image Tools." = "截圖：%@ · 截圖並辨識文字：%@。辨識出的文字會自動拷貝。可在「設定 → 圖片工具」裡修改快速鍵。";
+"Image tools" = "圖片工具";
+"Right-click an image in the history to annotate, pin to screen, read text or QR codes, combine images or make a before/after GIF." = "在歷史中右鍵點按圖片，可以標註、貼到螢幕、辨識文字或 QR 碼、拼接圖片，或製作前後對比 GIF。";
+"Permissions" = "權限";
+"Accessibility" = "輔助使用";
+"Needed to paste automatically into the app you were using." = "用於自動貼上到你正在使用的 App。";
+"Screen Recording" = "螢幕錄製";
+"Needed for screenshots and screenshot OCR." = "用於截圖和截圖辨識文字。";
+"After turning a permission on, quit and reopen Shike if it still shows as missing." = "開啟權限後如果這裡仍顯示未授權，請結束並重新開啟拾刻。";
+"Open Settings…" = "打開設定…";
+"Get Started" = "開始使用";
+"Allowed" = "已允許";
+"Open System Settings" = "打開系統設定";
+"Welcome Guide…" = "歡迎指南…";
