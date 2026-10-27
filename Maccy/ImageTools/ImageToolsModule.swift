@@ -180,7 +180,7 @@ final class ImageToolsModule {
   func menu(items: [HistoryItem]) -> NSMenu? {
     guard enabled, items.contains(where: { $0.imageData != nil }) else { return nil }
     let menu = NSMenu()
-    func add(_ title: String, _ action: @escaping () -> Void) { menu.addItem(WorkbenchMenuItem(title: tr(title), action: action)) }
+    func add(_ title: String, _ action: @escaping @MainActor () -> Void) { menu.addItem(WorkbenchMenuItem(title: tr(title), action: action)) }
     add("Annotate…") { if let data = items.first(where: { $0.imageData != nil })?.imageData { self.editor(data) } }
     add("Pin to Screen") { if let data = items.first(where: { $0.imageData != nil })?.imageData { self.pin(data) } }
     add("Run OCR") { if let data = items.first(where: { $0.imageData != nil })?.imageData { self.recognize(data, qr: false) } }
@@ -225,15 +225,15 @@ final class ImageToolsModule {
   func tr(_ key: String) -> String { NSLocalizedString(key, comment: "Image tools") }
 }
 
-final class WorkbenchMenuItem: NSMenuItem {
-  private let handler: () -> Void
-  init(title: String, action: @escaping () -> Void) {
+nonisolated final class WorkbenchMenuItem: NSMenuItem {
+  private let handler: @MainActor () -> Void
+  init(title: String, action: @escaping @MainActor () -> Void) {
     handler = action
     super.init(title: title, action: #selector(invoke), keyEquivalent: "")
     target = self
   }
   required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-  @objc private func invoke() { handler() }
+  @MainActor @objc private func invoke() { handler() }
 }
 
 private final class WorkbenchWindow: NSWindow, NSWindowDelegate {

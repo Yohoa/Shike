@@ -256,7 +256,7 @@ private struct NotchSurface<S: Shape>: ViewModifier {
 
 /// Notch silhouette: flat top flush with the bezel, concave shoulders flaring into the
 /// sides, then rounded bottom corners. Both radii animate so the shape morphs with the spring.
-struct NotchShape: Shape {
+nonisolated struct NotchShape: Shape {
   var topRadius: CGFloat
   var bottomRadius: CGFloat
   var animatableData: AnimatablePair<CGFloat, CGFloat> {

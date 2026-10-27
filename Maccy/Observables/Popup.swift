@@ -83,7 +83,7 @@ class Popup {
 
   @MainActor
   func reset() {
-    for item in AppState.shared.history.all {
+    for item in AppState.shared.history.items {
       item.cleanupPreviewImage()
     }
     state = .toggle

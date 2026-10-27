@@ -26,9 +26,9 @@ class About {
     let credits = NSMutableAttributedString(string: "",
                                             attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor])
     credits.append(NSAttributedString(
-      string: NSLocalizedString("Raphael local build", comment: "About build") + " · 2026-10-26\n"
+      string: NSLocalizedString("Raphael local build", comment: "About build") + " · 2026-10-27\n"
         + NSLocalizedString("Memory fixes · Combined text and images", comment: "About features") + "\n"
-        + NSLocalizedString("Based on Maccy 2.7.1", comment: "About base version") + "\n\n",
+        + NSLocalizedString("Based on Maccy 2.8.0", comment: "About base version") + "\n\n",
       attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor]
     ))
     credits.append(NSAttributedString(
@@ -51,7 +51,7 @@ class About {
     NSApp.activate(ignoringOtherApps: true)
     NSApp.orderFrontStandardAboutPanel(options: [
       .applicationName: NSLocalizedString("Maccy · Raphael’s build", comment: "About title"),
-      .applicationVersion: "2.7.1 · " + String(format: NSLocalizedString("Local Fix %d", comment: "Local build version"), 9),
+      .applicationVersion: "2.8.0 · " + String(format: NSLocalizedString("Local Fix %d", comment: "Local build version"), 10),
       .credits: credits
     ])
   }

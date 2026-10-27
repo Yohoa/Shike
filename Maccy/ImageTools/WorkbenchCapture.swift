@@ -85,7 +85,7 @@ final class WorkbenchCapture {
     }
   }
 
-  private func finish(_ result: (NSScreen, CGRect)?) {
+  private func finish(_ result: sending (NSScreen, CGRect)?) {
     panels.forEach { $0.orderOut(nil) }
     panels.removeAll()
     let pending = continuation

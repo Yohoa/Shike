@@ -65,7 +65,7 @@ final class NotchModule {
   var recent: [HistoryItemDecorator] {
     // Observe the existing history's mutations. No separate index, polling or decoded originals.
     _ = History.shared.items
-    let base = Array(History.shared.all.prefix(8))
+    let base = Array(History.shared.items.prefix(8))
     let ids = Self.arrange(base.map(\.id), order: manualOrder)
     return ids.compactMap { id in base.first { $0.id == id } }
   }
@@ -117,7 +117,7 @@ final class NotchModule {
     if !selectedIDs.contains(row.id) { select(row.id, multiple: false) }
     let items = selected
     let menu = NSMenu()
-    func add(_ title: String, _ action: @escaping () -> Void) {
+    func add(_ title: String, _ action: @escaping @MainActor () -> Void) {
       menu.addItem(WorkbenchMenuItem(title: NSLocalizedString(title, comment: "Notch context menu"), action: action))
     }
     add("Copy") { [weak self] in self?.transfer(paste: false) }

@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import Vision
 
 // Independently implemented image utilities. No FlowShelf source is included.
-enum ImageWorkbenchError: LocalizedError {
+nonisolated enum ImageWorkbenchError: LocalizedError {
   case invalidImage, tooLarge, noText, noQR, exportFailed
   var errorDescription: String? {
     let key: String
@@ -19,7 +19,7 @@ enum ImageWorkbenchError: LocalizedError {
   }
 }
 
-enum ImageWorkbench {
+nonisolated enum ImageWorkbench {
   static let pixelLimit = 32_000_000
 
   static func validate(width: Int, height: Int) throws {

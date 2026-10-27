@@ -92,9 +92,9 @@ final class NotchTests: XCTestCase {
     let pb = NSPasteboard.withUniqueName()
     defer { pb.releaseGlobally() }
     pb.setString("not added", forType: .string)
-    let before = History.shared.all.count
+    let before = History.shared.items.count
     XCTAssertFalse(module.acceptDrop(pb))
-    XCTAssertEqual(History.shared.all.count, before)
+    XCTAssertEqual(History.shared.items.count, before)
   }
   func testImageToolsClickSelectsWhileModifierActionsStillWork() {
     XCTAssertTrue(HistoryRowClickPolicy.selectsOnly(imageToolsEnabled: true, flags: []))
