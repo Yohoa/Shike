@@ -44,7 +44,7 @@
 "Raphael local build" = "Raphael 本機修復版";
 "Memory fixes · Text and image drag" = "記憶體修復 · 圖文多選拖出";
 "Based on Maccy 2.8.0" = "基於官方 Maccy 2.8.0";
-"Maccy · Raphael’s build" = "拾刻 · Raphael 版";
+"Maccy · Raphael’s build" = "拾刻剪貼簿 · Raphael 版";
 "Local Fix %d" = "本機修復 %d";
 
 "Copy combined" = "複製組合內容";
@@ -171,7 +171,7 @@
 
 "The image could not be exported." = "無法匯出圖片。";
 
-"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "請在系統設定 → 隱私權與安全性 → 螢幕與系統音訊錄製中允許 拾刻，然後重試。";
+"Allow Maccy Fixed in System Settings → Privacy & Security → Screen & System Audio Recording, then try again." = "請在系統設定 → 隱私權與安全性 → 螢幕與系統音訊錄製中允許 拾刻剪貼簿，然後重試。";
 
 "Cancel" = "取消";
 

@@ -13,7 +13,9 @@
 	<key>CFBundleName</key>
 	<string>Shike</string>
 	<key>CFBundleDisplayName</key>
-	<string>拾刻</string>
+	<string>Shike</string>
+	<key>LSHasLocalizedDisplayName</key>
+	<true/>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

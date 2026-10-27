@@ -1,0 +1,3 @@
+/* App name shown in Finder, Dock and Spotlight. */
+"CFBundleDisplayName" = "Shike";
+"CFBundleName" = "Shike";

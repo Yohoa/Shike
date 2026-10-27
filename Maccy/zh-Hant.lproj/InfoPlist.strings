@@ -1,0 +1,3 @@
+/* App name shown in Finder, Dock and Spotlight. */
+"CFBundleDisplayName" = "拾刻剪貼簿";
+"CFBundleName" = "拾刻剪貼簿";
