@@ -19,7 +19,7 @@ animal = animal.crop(box)
 
 S = 1024
 icon = Image.new('RGBA', (S, S), (0, 0, 0, 0))
-inset, size = 100, 824
+inset, size = 100, int(sys.argv[2]) if len(sys.argv) > 2 else 824
 def squircle(n=5.0, scale=4):
     m = Image.new('L', (size * scale, size * scale), 0)
     r = size * scale / 2
@@ -35,19 +35,23 @@ shape = squircle()
 
 face = Image.new('RGB', (size, size), (251, 250, 246))
 draw = ImageDraw.Draw(face)
-band = 168
+u = size / 824
+band = int(168 * u)
 draw.rectangle([0, 0, size, band], fill=(166, 25, 46))   # O'Reilly-style title band
-font = ImageFont.truetype('/System/Library/Fonts/Supplemental/Songti.ttc', 104, index=1)
+font = ImageFont.truetype('/System/Library/Fonts/Supplemental/Songti.ttc', int(104 * u), index=1)
 text = '拾刻'
 w = draw.textlength(text, font=font)
-draw.text(((size - w) / 2, band / 2 + 6), text, font=font, fill=(255, 255, 255), anchor='lm')
-draw.line([(60, band + 18), (size - 60, band + 18)], fill=(166, 25, 46), width=3)
+draw.text(((size - w) / 2, band / 2 + 6 * u), text, font=font, fill=(255, 255, 255), anchor='lm')
+draw.line([(60 * u, band + 18 * u), (size - 60 * u, band + 18 * u)], fill=(166, 25, 46), width=max(2, int(3 * u)))
 
-h = size - band - 80
+h = int(size - band - 80 * u)
 aw = int(animal.width * h / animal.height)
 art = animal.resize((aw, h), Image.LANCZOS)
-face.paste(ImageOps.colorize(art, (24, 22, 20), (251, 250, 246)), ((size - aw) // 2, band + 34))
+face.paste(ImageOps.colorize(art, (24, 22, 20), (251, 250, 246)), ((size - aw) // 2, band + int(34 * u)))
 
+if size == 1024:
+    face.save(f'{D}/layer-1024.png')
+    raise SystemExit
 shadow = Image.new('RGBA', (S, S), (0, 0, 0, 0))
 sh = Image.new('L', (S, S), 0); sh.paste(shape, (inset, inset + 10))
 shadow.putalpha(sh.point(lambda v: v * 0.35).filter(ImageFilter.GaussianBlur(14)))
