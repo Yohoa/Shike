@@ -54,6 +54,19 @@ extension SharedStateTests {
       #expect(copies.count == 1)
     }
 
+    @Test("Records data written after the pasteboard was seen cleared")
+    func recordsDataWrittenAfterClear() async throws {
+      var copies: [HistoryItem] = []
+      clipboard.onNewCopy { copies.append($0) }
+      // Like Kestrel: clear, then spend longer than a check encoding the image before writing it.
+      pasteboard.clearContents()
+      clipboard.checkForChangesInPasteboard()
+      #expect(copies.isEmpty)
+      pasteboard.writeObjects([image])
+      clipboard.checkForChangesInPasteboard()
+      #expect(copies.count == 1)
+    }
+
     @Test("Ignore string with only spaces")
     func ignoreStringWithOnlySpaces() async throws {
       let copies = try await waitForCopies(expectingCopy: false, after: {

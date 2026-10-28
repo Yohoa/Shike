@@ -153,7 +153,9 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
     logger.info("Inserting item with id '\(item.title)'")
     Storage.shared.context.insert(item)
     Storage.shared.context.processPendingChanges()
-    try? Storage.shared.context.save()
+    do { try Storage.shared.context.save() } catch {
+      Clipboard.log.error("saving a new item failed: \(error.localizedDescription, privacy: .public)")
+    }
   }
 
   @discardableResult

@@ -1,9 +1,11 @@
 import AppKit
 import Defaults
+import OSLog
 import Sauce
 
 class Clipboard {
   static let shared = Clipboard()
+  static let log = Logger(subsystem: "local.raphael.Shike", category: "clipboard")
 
   typealias OnNewCopyHook = (HistoryItem) -> Void
 
@@ -13,6 +15,8 @@ class Clipboard {
   private let pasteboard = NSPasteboard.general
 
   private var timer: Timer?
+  private var emptyChecks = 0
+  private static let maxEmptyChecks = 20
   private var pasteTarget: NSRunningApplication?
 
   private let dynamicTypePrefix = "dyn."
@@ -219,6 +223,15 @@ class Clipboard {
       return
     }
 
+    // A writer clears the pasteboard first and fills it afterwards; encoding a large image (Kestrel's
+    // ⌘C renders a full-size photo into TIFF) can take longer than one check interval. Seeing the
+    // cleared state must not consume the change, or the data that follows is never recorded.
+    if (pasteboard.types ?? []).isEmpty && emptyChecks < Self.maxEmptyChecks {
+      emptyChecks += 1
+      return
+    }
+    emptyChecks = 0
+
     changeCount = pasteboard.changeCount
 
     if pasteboard.pasteboardItems?.contains(where: { $0.types.contains(.fromMaccy) }) != true {
@@ -239,11 +252,15 @@ class Clipboard {
     // Reading types on NSPasteboard gives all the available
     // types - even the ones that are not present on the NSPasteboardItem.
     // See https://github.com/p0deje/Maccy/issues/241.
+    let allTypes = (pasteboard.types ?? []).map(\.rawValue).joined(separator: ", ")
+    Self.log.info("change \(self.changeCount, privacy: .public) from \(self.sourceApp?.bundleIdentifier ?? "-", privacy: .public): \(allTypes, privacy: .public)")
     if shouldIgnore(Set(pasteboard.types ?? [])) {
+      Self.log.info("skipped: ignored pasteboard type")
       return
     }
 
     if let sourceAppBundle = sourceApp?.bundleIdentifier, shouldIgnore(sourceAppBundle) {
+      Self.log.info("skipped: ignored application")
       return
     }
 
@@ -279,8 +296,11 @@ class Clipboard {
     })
 
     guard !contents.isEmpty else {
+      Self.log.info("skipped: no enabled content")
       return
     }
+    let sizes = contents.map { "\($0.type)=\($0.value?.count ?? -1)" }.joined(separator: ", ")
+    Self.log.info("recording \(sizes, privacy: .public)")
 
     let historyItem = HistoryItem(contents: contents)
 
