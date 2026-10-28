@@ -66,6 +66,21 @@ struct PreviewItemView: View {
         }
       }
 
+      if item.hasImage, ImageToolsModule.shared.enabled, let data = item.item.imageData {
+        HStack {
+          Button("Annotate…", systemImage: "pencil.tip.crop.circle") {
+            NotchModule.shared.closePreview()
+            ImageToolsModule.shared.editor(data)
+          }
+          Button("Run OCR", systemImage: "text.viewfinder") {
+            NotchModule.shared.closePreview()
+            ImageToolsModule.shared.recognize(data, qr: false)
+          }
+        }
+        .controlSize(.regular)
+        .padding(.top, 8)
+      }
+
       Spacer(minLength: 0)
 
       Divider()

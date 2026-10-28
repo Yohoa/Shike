@@ -87,6 +87,13 @@ struct HistoryItemView: View {
   }
 
   private func handleClick(_ flags: NSEvent.ModifierFlags) {
+    // Double-click pastes like Enter. The first click of the pair already selected the row
+    // (image tools on); with image tools off it has already copied and closed the popup.
+    if HistoryRowClickPolicy.isDoubleClick(NSApp.currentEvent, flags: flags), !appState.navigator.isManualMultiSelect {
+      appState.navigator.select(item: item)
+      appState.pasteSelectionFromKeyboard(plainText: false)
+      return
+    }
     if flags.contains(.shift), let anchor = appState.navigator.leadHistoryItem {
       appState.navigator.isManualMultiSelect = true
       appState.navigator.extendSelection(from: anchor, to: item, isRange: true)
@@ -103,6 +110,11 @@ struct HistoryItemView: View {
 struct HistoryRowClickPolicy {
   static func selectsOnly(imageToolsEnabled: Bool, flags: NSEvent.ModifierFlags) -> Bool {
     imageToolsEnabled && flags.intersection([.command, .option, .control, .shift]).isEmpty
+  }
+
+  static func isDoubleClick(_ event: NSEvent?, flags: NSEvent.ModifierFlags) -> Bool {
+    guard let event, event.type == .leftMouseUp || event.type == .leftMouseDown else { return false }
+    return event.clickCount == 2 && flags.intersection([.command, .option, .control, .shift]).isEmpty
   }
 }
 

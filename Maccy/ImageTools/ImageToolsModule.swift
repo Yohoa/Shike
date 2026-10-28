@@ -176,7 +176,7 @@ final class ImageToolsModule {
   func save(data: Data, gif: Bool = false) {
     let panel = NSSavePanel()
     panel.allowedContentTypes = gif ? [.gif] : [.png]
-    panel.nameFieldStringValue = gif ? "Maccy-before-after.gif" : "Maccy-image.png"
+    panel.nameFieldStringValue = gif ? "Shike-before-after.gif" : "Shike-image.png"
     guard panel.runModal() == .OK, let url = panel.url else { return }
     do { try data.write(to: url, options: .atomic) } catch { showError(error) }
   }

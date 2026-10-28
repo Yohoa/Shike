@@ -1,6 +1,6 @@
 "Title" = "詳細";
 "TurnOff" = "オフにする";
-"TurnOffDescription" = "このオプションを有効にすると、一時的に全ての新規コピーを無視します。\nまた、重要なデータをコピーする場合は、下記のコマンドを用いてMaccyを無効にすることもできます。";
+"TurnOffDescription" = "このオプションを有効にすると、一時的に全ての新規コピーを無視します。\nまた、重要なデータをコピーする場合は、下記のコマンドを用いてShikeを無効にすることもできます。";
 "TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# データコピー\ndefaults write local.raphael.Shike ignoreEvents false";
 "TurnOffViaMenuIconDescription" = "⌥ を押したままメニュー アイコンをクリックすることもできます。\n次のコピーだけを無視するには、⌥⇧でクリックします。";
 "TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# データコピー";

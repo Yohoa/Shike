@@ -14,7 +14,7 @@ struct Get: AppIntent, CustomIntentMigratedAppIntent {
 
   static let title: LocalizedStringResource = "Get Item from Clipboard History"
   static let description = IntentDescription("""
-  Gets an item from Maccy clipboard history.
+  Gets an item from Shike clipboard history.
   The returned item can be used to access its plain/rich/HTML text, image contents or file location.
   """)
 

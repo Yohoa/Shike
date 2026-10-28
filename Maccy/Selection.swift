@@ -103,7 +103,7 @@ extension HistoryDragPayload {
     if contents.count == 1, let image = contents.first,
        let data = image.imageData, let type = image.typeIdentifier {
       let provider = NSItemProvider(item: data as NSData, typeIdentifier: type)
-      provider.suggestedName = "Maccy.\(image.fileExtension ?? "img")"
+      provider.suggestedName = "Shike.\(image.fileExtension ?? "img")"
       return provider
     }
     guard let item = combinedItem(contents: contents), let data = item.data(forType: .rtfd) else { return nil }
@@ -144,7 +144,7 @@ extension HistoryDragPayload {
       } else if let data = content.imageData {
         let attachment = NSTextAttachment()
         let wrapper = FileWrapper(regularFileWithContents: data)
-        wrapper.preferredFilename = "Maccy-\(index + 1).\(content.fileExtension ?? "img")"
+        wrapper.preferredFilename = "Shike-\(index + 1).\(content.fileExtension ?? "img")"
         attachment.fileWrapper = wrapper
         document.append(NSAttributedString(attachment: attachment))
       }
@@ -199,7 +199,7 @@ extension HistoryDragPayload {
       if let text = content.text {
         item.setString(text, forType: .string)
       } else if let data = content.imageData, let type = content.typeIdentifier {
-        let url = directory.appendingPathComponent("Maccy-\(index + 1).\(content.fileExtension ?? "img")")
+        let url = directory.appendingPathComponent("Shike-\(index + 1).\(content.fileExtension ?? "img")")
         try data.write(to: url, options: .atomic)
         item.setData(data, forType: NSPasteboard.PasteboardType(type))
         item.setString(url.absoluteString, forType: .fileURL)
@@ -295,7 +295,7 @@ final class HistoryNativeDragView: NSView, NSDraggingSource {
       return
     }
     guard let contents = snapshot?() else { return }
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("MaccyDrag-\(UUID())")
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("ShikeDrag-\(UUID())")
     do {
       try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
       let chat = chatMode ? HistoryDragPayload.chatParts(contents: contents) : nil

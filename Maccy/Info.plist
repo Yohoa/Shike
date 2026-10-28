@@ -29,7 +29,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © Alexey Rodionov</string>
+	<string>© 2026 Yohoa Studio · Maccy © Alexey Rodionov (MIT)</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUEnableDownloaderService</key>
@@ -46,7 +46,7 @@
 		<key>UTTypeTagSpecification</key>
 		<dict/>
 		<key>UTTypeDescription</key>
-		<string>Maccy Pin Reorder Type</string>
+		<string>Shike Pin Reorder Type</string>
 		<key>UTTypeConformsTo</key>
 		<array>
 		<string>public.data</string>
