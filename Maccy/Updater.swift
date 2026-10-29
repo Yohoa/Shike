@@ -86,6 +86,7 @@ final class Updater {
     var request = URLRequest(url: URL(string: "https://api.github.com/repos/\(Self.repo)/releases/latest")!)
     request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
     request.timeoutInterval = 20
+    request.cachePolicy = .reloadIgnoringLocalCacheData  // a cached answer can hide a release published minutes ago
     Task {
       let result = try? await URLSession.shared.data(for: request)
       UserDefaults.standard.set(Date(), forKey: "localUpdatesLastCheck")
@@ -200,7 +201,7 @@ final class Updater {
 
   func showWindow() {
     if window == nil {
-      let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 200),
+      let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 200),
                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
       window.title = tr("Software Update")
       window.isReleasedWhenClosed = false
@@ -254,11 +255,11 @@ private struct UpdateView: View {
         Text("Shike downloads it to Downloads, checks it and opens it, then quits. Drag Shike onto Applications and choose Replace.")
           .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         HStack {
-          Button("Skip This Version") { updater.skip(release) }
-          Button("Release Page") { NSWorkspace.shared.open(release.page) }
+          Button("Skip This Version") { updater.skip(release) }.fixedSize()
+          Button("Release Page") { NSWorkspace.shared.open(release.page) }.fixedSize()
           Spacer()
-          Button("Later") { updater.close() }
-          Button("Download and Open") { updater.install(release) }.keyboardShortcut(.defaultAction)
+          Button("Later") { updater.close() }.fixedSize()
+          Button("Download and Open") { updater.install(release) }.keyboardShortcut(.defaultAction).fixedSize()
         }
       case .downloading(let fraction):
         ProgressView(value: fraction) { Text("Downloading…").font(.caption) }
@@ -279,7 +280,7 @@ private struct UpdateView: View {
       }
     }
     .padding(20)
-    .frame(width: 480)
+    .frame(width: 560)
     .fixedSize(horizontal: false, vertical: true)
   }
 

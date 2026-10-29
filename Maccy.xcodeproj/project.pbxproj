@@ -1925,7 +1925,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.8.14;
+				MARKETING_VERSION = 2.8.15;
 				PRODUCT_BUNDLE_IDENTIFIER = studio.yohoa.Shike;
 				PRODUCT_MODULE_NAME = Maccy;
 				PRODUCT_NAME = Shike;
@@ -1961,7 +1961,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.8.14;
+				MARKETING_VERSION = 2.8.15;
 				PRODUCT_BUNDLE_IDENTIFIER = studio.yohoa.Shike;
 				PRODUCT_MODULE_NAME = Maccy;
 				PRODUCT_NAME = Shike;
