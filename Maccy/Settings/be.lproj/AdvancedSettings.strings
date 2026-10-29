@@ -1,7 +1,7 @@
 "Title" = "Прасунутыя";
 "TurnOff" = "Выключыць";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# капіяваць дадзеныя\ndefaults write local.raphael.Shike ignoreEvents false";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# капіяваць дадзеныя";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# капіяваць дадзеныя\ndefaults write studio.yohoa.Shike ignoreEvents false";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# капіяваць дадзеныя";
 "ClearHistoryOnQuit" = "Ачысціць гісторыю пры зачыненні";
 "ClearSystemClipboard" = "Таксама ачысціць сістэмны буфер абмену";
 "ClearSystemClipboardTooltip" = "Калі гэты параметр улучаны, ачыстка гісторыі таксама ачысціць бягучы сістэмны буфер абмену.";

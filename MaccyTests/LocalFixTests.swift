@@ -399,4 +399,32 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     XCTAssertFalse(others.contains { $0.initialShortcut == ocr })
   }
 
+  func testUpdaterParsesPlainVersionTagsOnly() throws {
+    func release(_ tag: String) -> Data {
+      try! JSONSerialization.data(withJSONObject: [
+        "tag_name": tag, "html_url": "https://github.com/Yohoa/Shike/releases/tag/\(tag)", "body": "notes",
+        "assets": [["name": "Shike-2.8.13.dmg", "browser_download_url": "https://example.com/Shike-2.8.13.dmg"]]
+      ])
+    }
+    let parsed = try XCTUnwrap(Updater.parse(release("v2.8.13")))
+    XCTAssertEqual(parsed.version, "2.8.13")
+    XCTAssertEqual(parsed.name, "Shike-2.8.13.dmg")
+    XCTAssertNil(Updater.parse(release("v2.8.0-shike.12")))
+  }
+
+  func testUpdaterComparesVersionsNumerically() {
+    XCTAssertTrue(Updater.isNewer("2.8.13", than: "2.8.9"))
+    XCTAssertTrue(Updater.isNewer("2.9", than: "2.8.13"))
+    XCTAssertFalse(Updater.isNewer("2.8.13", than: "2.8.13"))
+    XCTAssertFalse(Updater.isNewer("2.8.12", than: "2.8.13"))
+  }
+
+  func testUpdaterReadsChecksumAndHidesItFromNotes() {
+    let sha = String(repeating: "ab", count: 32)
+    let notes = "- New thing\n\n**Install**\n- Open Anyway\n\nSHA-256 of `Shike-2.8.13.dmg`: `\(sha)`"
+    XCTAssertEqual(Updater.sha256(in: notes), sha)
+    XCTAssertNil(Updater.sha256(in: "no checksum here"))
+    XCTAssertEqual(Updater.whatsNew(notes), "- New thing")
+  }
+
 }

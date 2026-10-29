@@ -1,9 +1,9 @@
 "Title" = "Geavanceerd";
 "TurnOff" = "Zet uit";
 "TurnOffDescription" = "Negeer tijdelijk alle nieuwe kopieën.\nJe zult het waarschijnlijk programmatisch gebruiken en de apps uitschakelen tijdens het kopiëren van gevoelige gegevens.";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# kopieer data\ndefaults write local.raphael.Shike ignoreEvents false";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# kopieer data\ndefaults write studio.yohoa.Shike ignoreEvents false";
 "TurnOffViaMenuIconDescription" = "Je kunt ook op het menu-icoontje klikken terwijl je ⌥ ingedrukt houdt.\nOm alleen de volgende kopie te negeren, klik met ⌥⇧.";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# kopieer data";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# kopieer data";
 "ClearHistoryOnQuit" = "Wis geschiedenis bij afsluiten";
 "ClearHistoryOnQuitTooltip" = "Verwijder automatisch alle niet vastgemaakte items voordat u de app afsluit.";
 "ClearSystemClipboard" = "Wis ook het systeemklembord";

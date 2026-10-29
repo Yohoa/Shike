@@ -32,12 +32,6 @@
 	<string>© 2026 Yohoa Studio · Maccy © Alexey Rodionov (MIT)</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>SUEnableDownloaderService</key>
-	<true/>
-	<key>SUEnableInstallerLauncherService</key>
-	<true/>
-	<key>SUEnableAutomaticChecks</key>
-	<false/>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 	<dict>

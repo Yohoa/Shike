@@ -5,7 +5,7 @@ import Sauce
 
 class Clipboard {
   static let shared = Clipboard()
-  static let log = Logger(subsystem: "local.raphael.Shike", category: "clipboard")
+  static let log = Logger(subsystem: "studio.yohoa.Shike", category: "clipboard")
 
   typealias OnNewCopyHook = (HistoryItem) -> Void
 

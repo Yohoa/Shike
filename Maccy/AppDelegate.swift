@@ -1,6 +1,5 @@
 import Defaults
 import KeyboardShortcuts
-import Sparkle
 import SwiftUI
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -41,11 +40,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     UserDefaults.standard.register(defaults: ["NSWindowAssertWhenDisplayCycleLimitReached": false])
     #if DEBUG
     if Self.isTesting {
-      SPUUpdater(hostBundle: Bundle.main,
-                 applicationBundle: Bundle.main,
-                 userDriver: SPUStandardUserDriver(hostBundle: Bundle.main, delegate: nil),
-                 delegate: nil)
-      .automaticallyChecksForUpdates = false
       // Start from a clean slate for the isolated testing preferences.
       UserDefaults.standard.removePersistentDomain(forName: Defaults.Keys.testingSuiteName)
     }
@@ -124,7 +118,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       ContentView()
     }
 
-    if !Self.isTesting { WelcomeGuide.showIfNeeded() }
+    if !Self.isTesting {
+      WelcomeGuide.showIfNeeded()
+      Task {
+        try? await Task.sleep(for: .seconds(4))
+        Updater.shared.checkAtLaunch()
+      }
+    }
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

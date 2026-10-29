@@ -260,3 +260,28 @@
 "Allowed" = "Allowed";
 "Open System Settings" = "Open System Settings";
 "Welcome Guide…" = "Welcome Guide…";
+
+/* Updates */
+"Software Update" = "Software Update";
+"Checking for updates…" = "Checking for updates…";
+"Shike %@ is available" = "Shike %@ is available";
+"Shike is up to date" = "Shike is up to date";
+"Updating Shike" = "Updating Shike";
+"You have %@." = "You have %@.";
+"Couldn't reach GitHub." = "Couldn't reach GitHub.";
+"GitHub answered %d." = "GitHub answered %d.";
+"The release has no checksum, so it was not downloaded." = "The release has no checksum, so it was not downloaded.";
+"The download failed." = "The download failed.";
+"The download doesn't match the release's checksum, so it was not opened." = "The download doesn't match the release's checksum, so it was not opened.";
+"The disk image isn't signed like this copy of Shike, so it was not opened." = "The disk image isn't signed like this copy of Shike, so it was not opened.";
+"The download could not be saved to Downloads." = "The download could not be saved to Downloads.";
+"Shike downloads it to Downloads, checks it and opens it, then quits. Drag Shike onto Applications and choose Replace." = "Shike downloads it to Downloads, checks it and opens it, then quits. Drag Shike onto Applications and choose Replace.";
+"Skip This Version" = "Skip This Version";
+"Release Page" = "Release Page";
+"Later" = "Later";
+"Download and Open" = "Download and Open";
+"Downloading…" = "Downloading…";
+"The new version is open in Finder. Drag Shike onto Applications, choose Replace, then open Shike again. Shike quits now." = "The new version is open in Finder. Drag Shike onto Applications, choose Replace, then open Shike again. Shike quits now.";
+"You're using the newest version." = "You're using the newest version.";
+"OK" = "OK";
+"Close" = "Close";

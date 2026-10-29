@@ -1,9 +1,9 @@
 "Title" = "Gelişmiş";
 "TurnOff" = "Kapat";
 "TurnOffDescription" = "Geçici olarak tüm yeni kopyaları yok say.\nBunu, büyük olasılıkla programsal olarak kullanırsınız ve önemli verilerinizi kopyalarken uygulamayı devre dışı bırakırsınız.";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# verileri kopyala\ndefaults write local.raphael.Shike ignoreEvents false";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# verileri kopyala\ndefaults write studio.yohoa.Shike ignoreEvents false";
 "TurnOffViaMenuIconDescription" = "Aynı zamanda, ⌥ basılıyken menü simgesine tıklayabilirsiniz.\nYalnızca sonraki kopyayı yok saymak için ⌥⇧ ile tıklayın.";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# verileri kopyala";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# verileri kopyala";
 "ClearHistoryOnQuit" = "Çıkışta geçmişi temizle";
 "ClearHistoryOnQuitTooltip" = "Uygulamadan çıkmadan önce tüm iğnesi çıkarılmış ögeleri kendiliğinden kaldır.";
 "ClearSystemClipboard" = "Sistem panosunu da temizle";

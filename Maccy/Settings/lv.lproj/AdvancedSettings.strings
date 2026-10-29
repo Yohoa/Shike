@@ -1,7 +1,7 @@
 "TurnOffDescription" = "Īslaicīgi ignorēt visas jaunās kopijas.\nIespējams, ka to izmantosiet programmatiski un atspējosiet lietojumprogrammu, kopējot sensitīvus datus.";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# tad kopēt datus\ndefaults write local.raphael.Shike ignoreEvents false";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# tad kopēt datus\ndefaults write studio.yohoa.Shike ignoreEvents false";
 "TurnOffViaMenuIconDescription" = "Varat arī noklikšķināt uz izvēlnes ikonas, nospiežot ⌥.\nLai ignorētu tikai nākamo kopiju, noklikšķiniet ar ⌥ ⇧.";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# tad kopēt datus";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# tad kopēt datus";
 "ClearHistoryOnQuit" = "Notīrīt vēsturi, izejot no programmas";
 "Title" = "Papildu";
 "ClearHistoryOnQuitTooltip" = "Pirms lietojumprogrammas aizvēršanas automātiski notīrīt visus nepiespraustos vienumus.";

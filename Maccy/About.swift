@@ -11,7 +11,7 @@ class About {
     let credits = NSMutableAttributedString(string: "",
                                             attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor])
     credits.append(NSAttributedString(
-      string: NSLocalizedString("Raphael local build", comment: "About build") + " · 2026-10-29\n"
+      string: NSLocalizedString("Raphael local build", comment: "About build") + "\n"
         + NSLocalizedString("Memory fixes · Combined text and images", comment: "About features") + "\n\n",
       attributes: [NSAttributedString.Key.foregroundColor: NSColor.labelColor]
     ))
@@ -31,7 +31,7 @@ class About {
     NSApp.activate(ignoringOtherApps: true)
     NSApp.orderFrontStandardAboutPanel(options: [
       .applicationName: NSLocalizedString("Maccy · Raphael’s build", comment: "About title"),
-      .applicationVersion: "2.8.0 · " + String(format: NSLocalizedString("Local Fix %d", comment: "Local build version"), 12),
+      .applicationVersion: Updater.currentVersion,
       .credits: credits
     ])
   }

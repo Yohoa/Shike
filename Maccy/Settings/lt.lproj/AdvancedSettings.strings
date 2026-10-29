@@ -6,5 +6,5 @@
 "ClearHistoryOnQuitTooltip" = "Automatiškai pašalinti visus neprisegtus elementus prieš išjungiant programą.";
 "ClearSystemClipboard" = "Taip pat išvalyti sistemos iškarpinę";
 "ClearSystemClipboardTooltip" = "Jei ši funkcija įjungta, istorijos ištrynimas taip pat ištrina dabartinę sistemos iškarpinę.";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# kopijuoti duomenis\ndefaults write local.raphael.Shike ignoreEvents false";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# kopijuoti duomenis";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# kopijuoti duomenis\ndefaults write studio.yohoa.Shike ignoreEvents false";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# kopijuoti duomenis";

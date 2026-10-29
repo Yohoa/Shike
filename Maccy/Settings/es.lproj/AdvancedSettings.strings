@@ -1,9 +1,9 @@
 "Title" = "Avanzado";
 "TurnOff" = "Desactivar";
 "TurnOffDescription" = "Ignorar temporalmente los nuevos elementos copiados.\nTambién se puede (des)activar la opción por consola para evitar la copia de datos sensibles.";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# volver a copiar elementos\ndefaults write local.raphael.Shike ignoreEvents false";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# volver a copiar elementos\ndefaults write studio.yohoa.Shike ignoreEvents false";
 "TurnOffViaMenuIconDescription" = "También puede hacer clic en el icono de menú con ⌥ presionado.\nPara ignorar solo la siguiente copia, hacer clic con ⌥⇧.";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# copiar datos";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# copiar datos";
 "ClearHistoryOnQuit" = "Borrar el historial al salir";
 "ClearHistoryOnQuitTooltip" = "Elimina automáticamente todos los elementos no anclados antes de salir de la aplicación.";
 "ClearSystemClipboard" = "Limpia también el portapapeles del sistema";

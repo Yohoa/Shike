@@ -4,7 +4,7 @@ import ScreenCaptureKit
 
 @MainActor
 final class WorkbenchCapture {
-  nonisolated static let log = Logger(subsystem: "local.raphael.Shike", category: "capture")
+  nonisolated static let log = Logger(subsystem: "studio.yohoa.Shike", category: "capture")
   private var panels: [NSPanel] = []
   private var continuation: CheckedContinuation<(NSScreen, CGRect)?, Never>?
 

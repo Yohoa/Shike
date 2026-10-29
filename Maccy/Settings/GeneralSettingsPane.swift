@@ -15,7 +15,7 @@ struct GeneralSettingsPane: View {
   @State private var pasteModifier = HistoryItemAction.paste.modifierFlags.description
   @State private var pasteWithoutFormatting = HistoryItemAction.pasteWithoutFormatting.modifierFlags.description
 
-  @State private var updater = SoftwareUpdater()
+  @State private var updater = Updater.shared
 
   var body: some View {
     Settings.Container(contentWidth: 450) {
@@ -23,11 +23,11 @@ struct GeneralSettingsPane: View {
         LaunchAtLogin.Toggle {
           Text("LaunchAtLogin", tableName: "GeneralSettings")
         }
-        Toggle(isOn: $updater.automaticallyChecksForUpdates) {
+        Toggle(isOn: $updater.autoCheck) {
           Text("CheckForUpdates", tableName: "GeneralSettings")
         }
         Button(
-          action: { updater.checkForUpdates() },
+          action: { updater.check(userAsked: true) },
           label: { Text("CheckNow", tableName: "GeneralSettings") }
         )
         Button("Welcome Guide…") { WelcomeGuide.show() }

@@ -1,9 +1,9 @@
 "Title" = "Altnivelaj agordoj";
 "TurnOff" = "Malŝalti";
 "TurnOffDescription" = "Provizore ignori ĉiujn novajn kopiojn.\nVi verŝajne uzos tion en programo kaj malŝaltos la aplikaĵon dum kopiado de tiklaj datumoj.";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# kopii datumojn\ndefaults write local.raphael.Shike ignoreEvents false";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# kopii datumojn\ndefaults write studio.yohoa.Shike ignoreEvents false";
 "TurnOffViaMenuIconDescription" = "";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# kopii datumojn";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# kopii datumojn";
 "ClearHistoryOnQuit" = "Forigi la historion dum forlaso";
 "ClearHistoryOnQuitTooltip" = "Aŭtomate forigi ĉiujn nefiksitajn erojn antaŭ ol forlasi la aplikaĵon.";
 "ClearSystemClipboard" = "Forigi ankaŭ la sisteman tondujon";

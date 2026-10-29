@@ -1,9 +1,9 @@
 "Title" = "Napredno";
 "TurnOff" = "Isključi";
 "TurnOffDescription" = "Privremeno zanemari sve nove kopije.\nVjerojatno ćeš ga koristiti tijekom programiranja i deaktivirati tijekom kopiranja osjetljivih podataka.";
-"TurnOffShellScript" = "defaults write local.raphael.Shike ignoreEvents true\n# kopiraj podatke\ndefaults write local.raphael.Shike ignoreEvents false";
+"TurnOffShellScript" = "defaults write studio.yohoa.Shike ignoreEvents true\n# kopiraj podatke\ndefaults write studio.yohoa.Shike ignoreEvents false";
 "TurnOffViaMenuIconDescription" = "Također možete kliknuti ikonu izbornika s pritisnutim ⌥.\nZa ignoriranje samo sljedeće kopije kliknite s ⌥⇧.";
-"TurnOffNextShellScript" = "defaults write local.raphael.Shike ignoreOnlyNextEvent true\n# kopiraj podatke";
+"TurnOffNextShellScript" = "defaults write studio.yohoa.Shike ignoreOnlyNextEvent true\n# kopiraj podatke";
 "ClearHistoryOnQuit" = "Izbriši povijest prilikom zatvaranja programa";
 "ClearHistoryOnQuitTooltip" = "Automatski ukloni sve otkvačene elemente prije zatvaranja programa.";
 "ClearSystemClipboard" = "Očistite i međuspremnik sustava";

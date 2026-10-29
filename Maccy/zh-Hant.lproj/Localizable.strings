@@ -269,3 +269,28 @@
 "Welcome Guide…" = "歡迎指南…";
 
 "Shike" = "拾刻";
+
+/* Updates */
+"Software Update" = "軟體更新";
+"Checking for updates…" = "正在檢查更新…";
+"Shike %@ is available" = "拾刻 %@ 已發佈";
+"Shike is up to date" = "拾刻已是最新版本";
+"Updating Shike" = "正在更新拾刻";
+"You have %@." = "目前版本 %@。";
+"Couldn't reach GitHub." = "連不上 GitHub。";
+"GitHub answered %d." = "GitHub 回傳了 %d。";
+"The release has no checksum, so it was not downloaded." = "這個版本沒有附檢查碼，所以沒有下載。";
+"The download failed." = "下載失敗。";
+"The download doesn't match the release's checksum, so it was not opened." = "下載的檔案和發佈的檢查碼不一致，所以沒有開啟。";
+"The disk image isn't signed like this copy of Shike, so it was not opened." = "這個磁碟映像的簽名和目前拾刻不一致，所以沒有開啟。";
+"The download could not be saved to Downloads." = "無法儲存到「下載項目」檔案夾。";
+"Shike downloads it to Downloads, checks it and opens it, then quits. Drag Shike onto Applications and choose Replace." = "拾刻會把它下載到「下載項目」檔案夾，核對後開啟，然後結束。把拾刻拖到「應用程式」上，選「取代」即可。";
+"Skip This Version" = "略過這個版本";
+"Release Page" = "發佈頁面";
+"Later" = "稍後";
+"Download and Open" = "下載並開啟";
+"Downloading…" = "正在下載…";
+"The new version is open in Finder. Drag Shike onto Applications, choose Replace, then open Shike again. Shike quits now." = "新版本已在 Finder 中開啟。把拾刻拖到「應用程式」上，選「取代」，再重新開啟拾刻。拾刻現在會結束。";
+"You're using the newest version." = "你用的已是最新版本。";
+"OK" = "好";
+"Close" = "關閉";
