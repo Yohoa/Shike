@@ -1,5 +1,6 @@
 import AppKit
 import Defaults
+import ImageIO
 import Sauce
 import SwiftData
 import Vision
@@ -205,6 +206,47 @@ class HistoryItem {
     return NSAttributedString(rtf: data, documentAttributes: nil)
   }
 
+  /// Width and height in pixels, read from the image header without decoding it.
+  var imagePixelSize: NSSize? { imageHeader?.pixels }
+
+  /// Pixel size and the size in points NSImage would give it (a 144 dpi screenshot is half its pixel size).
+  private var imageHeader: (pixels: NSSize, points: NSSize)? {
+    guard let data = imageData, let source = CGImageSourceCreateWithData(data as CFData, nil),
+          let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+          var width = properties[kCGImagePropertyPixelWidth] as? Double,
+          var height = properties[kCGImagePropertyPixelHeight] as? Double else { return nil }
+    if let orientation = properties[kCGImagePropertyOrientation] as? Int, orientation >= 5 { swap(&width, &height) }
+    let dpi = (properties[kCGImagePropertyDPIWidth] as? Double).flatMap { $0 > 0 ? $0 : nil } ?? 72
+    let pixels = NSSize(width: width, height: height)
+    return (pixels, NSSize(width: width * 72 / dpi, height: height * 72 / dpi))
+  }
+
+  /// The image fitted into `size` (points, never enlarged), decoded straight at that size: a 24 MP photo is
+  /// never expanded into a ~96 MB bitmap just to make a thumbnail or a preview.
+  func fittedImage(in size: NSSize, scale: CGFloat) -> NSImage? {
+    guard let data = imageData, let header = imageHeader, header.points.width > 0, header.points.height > 0 else { return nil }
+    let full = header.points
+    let ratio = min(size.width / full.width, size.height / full.height, 1)
+    let fitted = NSSize(width: (full.width * ratio).rounded(), height: (full.height * ratio).rounded())
+    // Enough pixels for the screen, never more than the image has.
+    let maxPixel = min(Int((max(fitted.width, fitted.height) * scale).rounded(.up)),
+                       Int(max(header.pixels.width, header.pixels.height)))
+    guard let image = Self.downsampled(data, maxPixel: maxPixel) else { return nil }
+    return NSImage(cgImage: image, size: fitted)
+  }
+
+  nonisolated static func downsampled(_ data: Data, maxPixel: Int) -> CGImage? {
+    guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else {
+      return nil
+    }
+    return CGImageSourceCreateThumbnailAtIndex(source, 0, [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceThumbnailMaxPixelSize: max(1, maxPixel),
+      kCGImageSourceShouldCacheImmediately: true
+    ] as CFDictionary)
+  }
+
   func clearDecodedImageCache() {
     cachedDecodedImage?.recache()
     cachedDecodedImage = nil
@@ -269,7 +311,11 @@ class HistoryItem {
       return nil
     }
 
-    let requestHandler = VNImageRequestHandler(data: data)
+    // Text in a 24 MP photo is still readable at 4096 px; decoding at full size cost ~96 MB per copied photo.
+    guard let image = downsampled(data, maxPixel: 4096) else {
+      return nil
+    }
+    let requestHandler = VNImageRequestHandler(cgImage: image)
     let request = VNRecognizeTextRequest()
     request.recognitionLevel = .accurate
     request.automaticallyDetectsLanguage = true

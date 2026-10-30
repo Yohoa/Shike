@@ -427,4 +427,28 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     XCTAssertEqual(Updater.whatsNew(notes), "- New thing")
   }
 
+
+  func testImagesAreDecodedAtDisplaySizeOnly() throws {
+    // 1200 × 800 px at 144 dpi: 600 × 400 points, like a Retina screenshot.
+    let context = try XCTUnwrap(CGContext(data: nil, width: 1200, height: 800, bitsPerComponent: 8, bytesPerRow: 0,
+                                          space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    context.setFillColor(CGColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: 1200, height: 800))
+    let png = NSMutableData()
+    let destination = try XCTUnwrap(CGImageDestinationCreateWithData(png, "public.png" as CFString, 1, nil))
+    CGImageDestinationAddImage(destination, try XCTUnwrap(context.makeImage()),
+                               [kCGImagePropertyDPIWidth: 144, kCGImagePropertyDPIHeight: 144] as CFDictionary)
+    XCTAssertTrue(CGImageDestinationFinalize(destination))
+    let item = HistoryItem(contents: [HistoryItemContent(type: NSPasteboard.PasteboardType.png.rawValue, value: png as Data)])
+
+    XCTAssertEqual(item.imagePixelSize, NSSize(width: 1200, height: 800))
+    let thumbnail = try XCTUnwrap(item.fittedImage(in: NSSize(width: 300, height: 300), scale: 2))
+    XCTAssertEqual(thumbnail.size, NSSize(width: 300, height: 200))
+    XCTAssertEqual(thumbnail.cgImage(forProposedRect: nil, context: nil, hints: nil)?.width, 600)
+    // Smaller than the box: shown at its own point size, decoded no larger than the image itself.
+    let preview = try XCTUnwrap(item.fittedImage(in: NSSize(width: 2000, height: 2000), scale: 2))
+    XCTAssertEqual(preview.size, NSSize(width: 600, height: 400))
+    XCTAssertEqual(preview.cgImage(forProposedRect: nil, context: nil, hints: nil)?.width, 1200)
+  }
+
 }

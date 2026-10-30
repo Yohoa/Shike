@@ -83,8 +83,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
   // Describe the complete item independently of its potentially truncated visual content.
   var accessibilityLabel: String {
     var parts: [String] = []
-    if hasImage, let image = item.image {
-      let size = image.pixelSize
+    if hasImage, let size = item.imagePixelSize {
       parts.append(
         String(
           format: NSLocalizedString("history_item_image_accessibility_label_no_app", comment: ""),
@@ -188,21 +187,15 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
 
   @MainActor
   private func generateThumbnailImage() {
-    guard let image = item.image else {
-      return
-    }
-    defer { item.clearDecodedImageCache() }
-    thumbnailImage = image.resized(to: HistoryItemDecorator.thumbnailImageSize)
+    thumbnailImage = item.fittedImage(in: HistoryItemDecorator.thumbnailImageSize, scale: Self.backingScale)
   }
 
   @MainActor
   private func generatePreviewImage() {
-    guard let image = item.image else {
-      return
-    }
-    defer { item.clearDecodedImageCache() }
-    previewImage = image.resized(to: HistoryItemDecorator.previewImageSize)
+    previewImage = item.fittedImage(in: HistoryItemDecorator.previewImageSize, scale: Self.backingScale)
   }
+
+  private static var backingScale: CGFloat { NSScreen.forPopup?.backingScaleFactor ?? 2 }
 
   @MainActor
   func sizeImages() {
