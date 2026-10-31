@@ -104,6 +104,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ aNotification: Notification) {
+    TerminationGuard.shared.start()
     ImageToolsModule.shared.start()
     NotchModule.shared.start()
     migrateUserDefaults()
@@ -125,6 +126,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Updater.shared.checkAtLaunch()
       }
     }
+  }
+
+  func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    TerminationGuard.shared.reply()
   }
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

@@ -208,7 +208,7 @@ class AppState: Sendable {
   }
 
   func quit() {
-    NSApp.terminate(self)
+    TerminationGuard.shared.quit()
   }
 }
 

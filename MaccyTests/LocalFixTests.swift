@@ -451,4 +451,19 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     XCTAssertEqual(preview.cgImage(forProposedRect: nil, context: nil, hints: nil)?.width, 1200)
   }
 
+
+  func testTerminationGuardOnlyAllowsDeliberateQuits() {
+    typealias Guard = TerminationGuard
+    // The system's App Intents service, or an event with no sender: refused.
+    XCTAssertFalse(Guard.allows(explicit: false, reason: nil, sender: .system("linkd")))
+    XCTAssertFalse(Guard.allows(explicit: false, reason: nil, sender: .system("launchservicesd")))
+    XCTAssertFalse(Guard.allows(explicit: false, reason: nil, sender: .unknown))
+    // Our own Quit and the updater, logout / restart / shutdown, an app or a script the person uses.
+    XCTAssertTrue(Guard.allows(explicit: true, reason: nil, sender: .unknown))
+    XCTAssertTrue(Guard.allows(explicit: false, reason: "rlgo", sender: .system("loginwindow")))
+    XCTAssertTrue(Guard.allows(explicit: false, reason: "shut", sender: .unknown))
+    XCTAssertTrue(Guard.allows(explicit: false, reason: nil, sender: .application))
+    XCTAssertTrue(Guard.allows(explicit: false, reason: nil, sender: .script))
+  }
+
 }

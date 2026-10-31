@@ -149,7 +149,7 @@ final class Updater {
       // Finder can't replace an app that is running.
       Task {
         try? await Task.sleep(for: .seconds(4))
-        NSApp.terminate(nil)
+        TerminationGuard.shared.quit()
       }
     }
   }
