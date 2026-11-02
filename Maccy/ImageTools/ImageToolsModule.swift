@@ -82,9 +82,14 @@ final class ImageToolsModule {
     do {
       let image = try ImageWorkbench.decode(data, maximumDimension: 2048)
       let ratio = CGFloat(image.height) / CGFloat(image.width)
+      var width: CGFloat = 420, height = width * ratio
+      if height > 600 { height = 600; width = height / ratio }
+      let model = PinModel()
       AppState.shared.popup.close()
-      present(title: tr("Pin to Screen"), view: PinnedImageView(image: NSImage(cgImage: image, size: .zero)),
-              size: NSSize(width: 420, height: min(600, max(160, 420 * ratio + 40))), floating: true)
+      let window = present(title: tr("Pin to Screen"), view: PinnedImageView(image: NSImage(cgImage: image, size: .zero), model: model),
+                           size: NSSize(width: width.rounded(), height: height.rounded()), floating: true, chromeless: true,
+                           hover: { model.hovering = $0 })
+      model.close = { [weak window] in window?.close() }
     } catch { showError(error) }
   }
 
@@ -200,15 +205,34 @@ final class ImageToolsModule {
     return menu
   }
 
-  func present<V: View>(title: String, view: V, size: NSSize, floating: Bool = false) {
-    guard windows.count < 6 else { showMessage(tr("Close an image tools window before opening another.")); return }
+  /// `chromeless`: no title bar or border, a transparent window around the content (pinned images); `hover` then
+  /// reports the pointer entering and leaving it so the content can show its controls only while it is near.
+  @discardableResult
+  func present<V: View>(title: String, view: V, size: NSSize, floating: Bool = false, chromeless: Bool = false,
+                        hover: ((Bool) -> Void)? = nil) -> NSWindow? {
+    guard windows.count < 6 else { showMessage(tr("Close an image tools window before opening another.")); return nil }
     let id = UUID()
     let window = WorkbenchWindow(contentRect: NSRect(origin: .zero, size: size),
-      styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+      styleMask: chromeless ? [.borderless, .resizable] : [.titled, .closable, .miniaturizable, .resizable],
+      backing: .buffered, defer: false)
     window.title = title
     window.isReleasedWhenClosed = false
-    window.contentView = NSHostingView(rootView: view)
-    window.minSize = NSSize(width: floating ? 180 : 600, height: floating ? 120 : 400)
+    if chromeless {
+      let host = HoverHostingView(rootView: view)
+      host.onHover = hover
+      window.contentView = host
+      window.isOpaque = false
+      window.backgroundColor = .clear
+      window.hasShadow = true
+      window.isMovableByWindowBackground = true
+      window.contentAspectRatio = size
+      window.minSize = NSSize(width: 120, height: (120 * size.height / size.width).rounded())
+      window.pinKeys = true
+      window.originalSize = size
+    } else {
+      window.contentView = NSHostingView(rootView: view)
+      window.minSize = NSSize(width: floating ? 180 : 600, height: floating ? 120 : 400)
+    }
     window.level = floating ? .floating : .normal
     if floating { window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary] }
     window.onClose = { [weak self] in self?.windows.removeValue(forKey: id) }
@@ -217,6 +241,7 @@ final class ImageToolsModule {
     window.center()
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
+    return window
   }
 
   func showError(_ error: Error) { showMessage(error.localizedDescription) }
@@ -240,8 +265,51 @@ nonisolated final class WorkbenchMenuItem: NSMenuItem {
   @MainActor @objc private func invoke() { handler() }
 }
 
+private final class HoverHostingView<Content: View>: NSHostingView<Content> {
+  var onHover: ((Bool) -> Void)?
+  private var hoverArea: NSTrackingArea?
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let hoverArea { removeTrackingArea(hoverArea) }
+    // Always active: the pinned image is rarely the key window, and the controls should still appear.
+    let area = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil)
+    addTrackingArea(area)
+    hoverArea = area
+  }
+  override func mouseEntered(with event: NSEvent) { super.mouseEntered(with: event); onHover?(true) }
+  override func mouseExited(with event: NSEvent) { super.mouseExited(with: event); onHover?(false) }
+}
+
 private final class WorkbenchWindow: NSWindow, NSWindowDelegate {
   var onClose: (() -> Void)?
+  /// Pinned images: ⌘= / ⌘- zoom, ⌘0 returns to the first size.
+  var pinKeys = false
+  var originalSize = NSSize.zero
+  override var canBecomeKey: Bool { true }
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    guard pinKeys, event.modifierFlags.intersection([.command, .option, .control]) == .command else {
+      return super.performKeyEquivalent(with: event)
+    }
+    switch event.charactersIgnoringModifiers {
+    case "=", "+": zoom(by: 1.15)
+    case "-": zoom(by: 1 / 1.15)
+    case "0": zoom(to: originalSize.width)
+    default: return super.performKeyEquivalent(with: event)
+    }
+    return true
+  }
+  private func zoom(by factor: CGFloat) { zoom(to: frame.width * factor) }
+  /// Resizes around the window's centre, keeping the aspect ratio, between the minimum and the screen.
+  private func zoom(to requested: CGFloat) {
+    let area = (screen ?? NSScreen.main)?.visibleFrame ?? frame
+    let ratio = frame.height / frame.width
+    let width = min(max(requested, minSize.width), area.width, area.height / ratio).rounded()
+    let size = NSSize(width: width, height: (width * ratio).rounded())
+    var target = NSRect(x: frame.midX - size.width / 2, y: frame.midY - size.height / 2, width: size.width, height: size.height)
+    target.origin.x = min(max(target.minX, area.minX), area.maxX - target.width)
+    target.origin.y = min(max(target.minY, area.minY), area.maxY - target.height)
+    setFrame(target, display: true, animate: true)
+  }
   func windowWillClose(_ notification: Notification) {
     contentView = nil
     onClose?()
@@ -264,18 +332,42 @@ struct RecognitionResultView: View {
   }
 }
 
+@Observable
+final class PinModel {
+  var hovering = false
+  var opacity = 1.0
+  var close: () -> Void = {}
+}
+
+/// A pinned image: just the picture until the pointer comes near, then a border, a close button and an opacity slider
+/// (like iPhone Mirroring's title bar). The window itself is transparent, so lowering the opacity shows what is behind.
 struct PinnedImageView: View {
   let image: NSImage
-  @State private var opacity = 1.0
+  var model: PinModel
+  private let corner: CGFloat = 10
+
   var body: some View {
-    VStack(spacing: 4) {
-      Image(nsImage: image).resizable().scaledToFit().opacity(opacity)
-      HStack {
-        Text("Opacity").font(.caption)
-        Slider(value: $opacity, in: 0.15...1).frame(maxWidth: 140)
-        Spacer()
-      }.padding(6)
-    }
+    Image(nsImage: image).resizable().scaledToFit()
+      .opacity(model.opacity)
+      .overlay(alignment: .top) {
+        HStack(spacing: 8) {
+          Button { model.close() } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .bold)) }
+            .buttonStyle(.plain).help(NSLocalizedString("Close", comment: "Close"))
+          Image(systemName: "circle.lefthalf.filled").font(.system(size: 11))
+          Slider(value: Binding(get: { model.opacity }, set: { model.opacity = $0 }), in: 0.15...1)
+            .controlSize(.mini).frame(maxWidth: 120)
+            .help(NSLocalizedString("Opacity", comment: "Pinned image opacity"))
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(.regularMaterial, in: Capsule())
+        .padding(8)
+        .opacity(model.hovering ? 1 : 0)
+      }
+      .overlay(RoundedRectangle(cornerRadius: corner).strokeBorder(Color.white.opacity(0.6), lineWidth: 1.5)
+        .opacity(model.hovering ? 1 : 0))
+      .clipShape(RoundedRectangle(cornerRadius: corner))
+      .animation(.easeInOut(duration: 0.15), value: model.hovering)
+      .contextMenu { Button("Close") { model.close() } }
   }
 }
 

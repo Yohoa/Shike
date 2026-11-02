@@ -7,6 +7,22 @@ enum AnnotationTool: String, CaseIterable, Identifiable {
   var id: String { rawValue }
 }
 
+extension AnnotationTool {
+  var symbol: String {
+    switch self {
+    case .pen: "pencil"
+    case .arrow: "arrow.up.right"
+    case .rectangle: "rectangle"
+    case .ellipse: "circle"
+    case .highlight: "highlighter"
+    case .text: "textformat"
+    case .step: "1.circle"
+    case .redact: "square.fill"
+    case .crop: "crop"
+    }
+  }
+}
+
 struct ImageMark {
   var tool: AnnotationTool
   var points: [CGPoint]
@@ -134,12 +150,10 @@ struct AnnotationEditor: View {
   @State private var resizeWidth = ""
   @State private var resizeHeight = ""
   @State private var keepRatio = true
+  @AppStorage("localAnnotateCloseAfterCopy") private var closeAfterCopy = true
   var body: some View {
     VStack(spacing: 10) {
       HStack {
-        Picker("Tool", selection: $document.tool) {
-          ForEach(AnnotationTool.allCases) { Text(NSLocalizedString($0.rawValue, comment: "Annotation tool")).tag($0) }
-        }.frame(width: 210)
         ColorPicker("Color", selection: $document.color).frame(width: 110)
         Text("Width")
         Slider(value: $document.width, in: 2...max(40, CGFloat(document.image.width) / 40)).frame(width: 90)
@@ -150,9 +164,12 @@ struct AnnotationEditor: View {
       if document.tool == .text {
         TextField("Text to place on the image", text: $document.text)
       }
-      AnnotationCanvas(document: document)
-        .background(Color(nsColor: .underPageBackgroundColor))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      HStack(spacing: 8) {
+        ToolColumn(document: document)
+        AnnotationCanvas(document: document)
+          .background(Color(nsColor: .underPageBackgroundColor))
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
       HStack {
         Button("Rotate 90°") { document.transform { try ImageWorkbench.rotated($0) } }
         Button("Flip horizontally") { document.transform { try ImageWorkbench.flipped($0) } }
@@ -173,12 +190,21 @@ struct AnnotationEditor: View {
       HStack {
         Text("Drag on the image to annotate. Changes create a new image.").font(.caption).foregroundStyle(.secondary)
         Spacer()
+        Text("Close after copy").font(.callout)
+        Toggle("Close after copy", isOn: $closeAfterCopy).labelsHidden().toggleStyle(.switch).controlSize(.small)
         Button("Pin to Screen") { withOutput { ImageToolsModule.shared.pin($0) } }
         Button("Save…") { withOutput { ImageToolsModule.shared.save(data: $0) } }
-        Button("Copy image") { withOutput {
-          ImageToolsModule.shared.copy(data: $0)
-          ImageToolsModule.shared.store(data: $0, type: .png)
-        } }.keyboardShortcut("c", modifiers: [.command, .shift])
+        Button("Copy image") {
+          let window = NSApp.keyWindow
+          withOutput {
+            ImageToolsModule.shared.copy(data: $0)
+            ImageToolsModule.shared.store(data: $0, type: .png)
+            guard closeAfterCopy else { return }
+            ToastHUD.show(NSLocalizedString("Image copied", comment: "Copy toast"))
+            // Not from inside this button's own action: the window drops its content view when it closes.
+            Task { @MainActor in window?.close() }
+          }
+        }.keyboardShortcut("c", modifiers: [.command, .shift])
       }
     }.padding(14).onAppear {
       resizeWidth = String(document.image.width)
@@ -193,6 +219,31 @@ struct AnnotationEditor: View {
     let h = keepRatio ? Int((Double(w) * Double(document.image.height) / Double(document.image.width)).rounded()) : Int(resizeHeight) ?? 0
     document.transform { try ImageWorkbench.resized($0, width: w, height: h) }
     resizeHeight = String(document.image.height)
+  }
+}
+
+/// The tools as a column of icons down the left side of the canvas.
+private struct ToolColumn: View {
+  @Bindable var document: AnnotationDocument
+  var body: some View {
+    VStack(spacing: 4) {
+      ForEach(AnnotationTool.allCases) { tool in
+        let name = NSLocalizedString(tool.rawValue, comment: "Annotation tool")
+        let selected = document.tool == tool
+        Button { document.tool = tool } label: {
+          Image(systemName: tool.symbol).font(.system(size: 15))
+            .frame(width: 32, height: 32)
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .background(selected ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(name)
+        .accessibilityLabel(name)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+      }
+      Spacer(minLength: 0)
+    }
   }
 }
 

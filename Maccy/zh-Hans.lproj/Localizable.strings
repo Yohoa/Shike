@@ -294,3 +294,7 @@
 "You're using the newest version." = "你用的已是最新版本。";
 "OK" = "好";
 "Close" = "关闭";
+
+/* Annotation and pinned images */
+"Close after copy" = "复制后关闭";
+"Image copied" = "图片已复制";

@@ -285,3 +285,7 @@
 "You're using the newest version." = "You're using the newest version.";
 "OK" = "OK";
 "Close" = "Close";
+
+/* Annotation and pinned images */
+"Close after copy" = "Close after copy";
+"Image copied" = "Image copied";

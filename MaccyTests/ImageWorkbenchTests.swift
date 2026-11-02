@@ -110,6 +110,42 @@ final class ImageWorkbenchTests: XCTestCase {
     }
     XCTAssertNil(released)
   }
+
+  func testPinnedImageIsATransparentBorderlessWindowThatZoomsWithCommandKeys() throws {
+    let module = ImageToolsModule.shared
+    let wasEnabled = module.enabled
+    module.enabled = true
+    defer { module.enabled = wasEnabled }
+    let before = Set(NSApp.windows.map(\.windowNumber))
+    module.pin(try ImageWorkbench.png(try solid(CGColor(red: 0.2, green: 0.5, blue: 0.9, alpha: 1), width: 800, height: 400)))
+    let window = try XCTUnwrap(NSApp.windows.first { !before.contains($0.windowNumber) })
+    defer { window.close() }
+
+    XCTAssertFalse(window.styleMask.contains(.titled))
+    XCTAssertFalse(window.isOpaque)
+    XCTAssertEqual(window.backgroundColor, .clear)
+    XCTAssertEqual(window.level, .floating)
+    XCTAssertEqual(window.frame.size, NSSize(width: 420, height: 210))
+    XCTAssertEqual(window.contentAspectRatio.width / window.contentAspectRatio.height, 2, accuracy: 0.001)
+
+    func press(_ key: String) throws {
+      let event = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+                                                 windowNumber: window.windowNumber, context: nil, characters: key,
+                                                 charactersIgnoringModifiers: key, isARepeat: false, keyCode: 0))
+      XCTAssertTrue(window.performKeyEquivalent(with: event))
+      RunLoop.current.run(until: Date().addingTimeInterval(0.6))   // the resize is animated
+    }
+    let centre = window.frame.midX
+    try press("=")
+    XCTAssertEqual(window.frame.width, 483, accuracy: 1)
+    XCTAssertEqual(window.frame.height, 241.5, accuracy: 1)
+    XCTAssertEqual(window.frame.midX, centre, accuracy: 1)
+    try press("-")
+    try press("-")
+    XCTAssertEqual(window.frame.width, 365, accuracy: 1)
+    try press("0")
+    XCTAssertEqual(window.frame.width, 420, accuracy: 1)
+  }
 }
 
 @MainActor
@@ -141,4 +177,5 @@ final class PopupFadeOCRTests: XCTestCase {
     RunLoop.main.run(until: Date().addingTimeInterval(1))
     XCTAssertTrue(AppState.shared.popup.isClosed())
   }
+
 }
