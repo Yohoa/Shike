@@ -339,6 +339,18 @@ final class PinModel {
   var close: () -> Void = {}
 }
 
+/// Dragging anywhere on the picture moves the window. A SwiftUI hosting view never lets a plain click move its window
+/// (`isMovableByWindowBackground` has no effect on it), so this AppKit view sits behind the picture and starts the
+/// drag itself; the buttons and the slider above it still get their own clicks.
+private struct WindowDragHandle: NSViewRepresentable {
+  func makeNSView(context: Context) -> NSView { DragView() }
+  func updateNSView(_ view: NSView, context: Context) {}
+  final class DragView: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+    override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+  }
+}
+
 /// A pinned image: just the picture until the pointer comes near, then a border, a close button and an opacity slider
 /// (like iPhone Mirroring's title bar). The window itself is transparent, so lowering the opacity shows what is behind.
 struct PinnedImageView: View {
@@ -349,6 +361,7 @@ struct PinnedImageView: View {
   var body: some View {
     Image(nsImage: image).resizable().scaledToFit()
       .opacity(model.opacity)
+      .background(WindowDragHandle())
       .overlay(alignment: .top) {
         HStack(spacing: 8) {
           Button { model.close() } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .bold)) }

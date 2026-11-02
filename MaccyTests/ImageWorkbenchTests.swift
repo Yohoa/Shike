@@ -133,8 +133,14 @@ final class ImageWorkbenchTests: XCTestCase {
                                                  windowNumber: window.windowNumber, context: nil, characters: key,
                                                  charactersIgnoringModifiers: key, isARepeat: false, keyCode: 0))
       XCTAssertTrue(window.performKeyEquivalent(with: event))
-      RunLoop.current.run(until: Date().addingTimeInterval(0.6))   // the resize is animated
+      RunLoop.current.run(until: Date().addingTimeInterval(0.9))   // the resize is animated
     }
+    // A click on the picture must be able to move the window (hosting views alone never do).
+    RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+    let content = try XCTUnwrap(window.contentView)
+    let hit = try XCTUnwrap(content.hitTest(NSPoint(x: content.bounds.midX, y: content.bounds.midY)))
+    XCTAssertTrue(hit.mouseDownCanMoveWindow, "hit \(type(of: hit))")
+
     let centre = window.frame.midX
     try press("=")
     XCTAssertEqual(window.frame.width, 483, accuracy: 1)
@@ -142,7 +148,7 @@ final class ImageWorkbenchTests: XCTestCase {
     XCTAssertEqual(window.frame.midX, centre, accuracy: 1)
     try press("-")
     try press("-")
-    XCTAssertEqual(window.frame.width, 365, accuracy: 1)
+    XCTAssertEqual(window.frame.width, 365, accuracy: 4)   // two animated steps, each rounded
     try press("0")
     XCTAssertEqual(window.frame.width, 420, accuracy: 1)
   }
