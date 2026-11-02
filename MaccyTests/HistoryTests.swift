@@ -14,7 +14,7 @@ extension SharedStateTests {
     let history = History.shared
 
     init() {
-      History.shared.clearAll()
+      History.shared.clearAll(wait: true)
       Defaults[.size] = 10
       Defaults[.sortBy] = .firstCopiedAt
       Defaults[.pinOrder] = PinOrder()
@@ -222,9 +222,22 @@ extension SharedStateTests {
       Storage.shared.context.insert(orphan)
       try Storage.shared.context.save()
 
-      history.clear()
+      history.clear(wait: true)
 
       #expect(history.items.toArray() == [pinned])
+      try assertStorageCounts(items: 1, contents: 1)
+    }
+
+    @Test("Clearing in the background empties the lists at once and the store afterwards")
+    func clearingInTheBackground() async throws {
+      let pinned = history.add(historyItem("foo"))
+      history.togglePin(pinned)
+      for index in 0..<30 { history.add(historyItem("bar \(index)")) }
+
+      history.clear()
+
+      #expect(history.items.toArray() == [pinned])   // no waiting for the store
+      await history.storageCleanup?.value
       try assertStorageCounts(items: 1, contents: 1)
     }
 
@@ -239,7 +252,7 @@ extension SharedStateTests {
       ))
       try Storage.shared.context.save()
 
-      history.clearAll()
+      history.clearAll(wait: true)
 
       #expect(history.items.toArray() == [])
       try assertStorageCounts(items: 0, contents: 0)

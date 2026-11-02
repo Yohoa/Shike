@@ -237,27 +237,56 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
     logger.info("\(msg) After: \(dataCounts())")
   }
 
-  @MainActor
-  func clear() {
-    withLogging("Clearing history") {
-      allUnpinnedItems.forEach(cleanup)
-      allUnpinnedItems.removeAll()
-      filteredUnpinnedItems.removeAll()
-      sessionLog.removeValues { $0.pin == nil }
+  /// The deletion started by the last `clear()` / `clearAll()`. It runs off the main thread so that a large history
+  /// can't freeze the popup; the lists are emptied at once, and quitting or tests wait with `wait: true`.
+  private(set) var storageCleanup: Task<Void, Never>?
 
-      try? Storage.shared.context.transaction {
-        try? Storage.shared.context.delete(
-          model: HistoryItem.self,
-          where: #Predicate { $0.pin == nil }
-        )
-        try? Storage.shared.context.delete(
-          model: HistoryItemContent.self,
-          where: #Predicate { $0.item?.pin == nil }
-        )
+  @MainActor
+  private func removeStoredItems(includingPinned: Bool, wait: Bool) {
+    // Make sure everything copied so far is in the store, then delete what existed at this moment from another context.
+    Storage.shared.context.processPendingChanges()
+    try? Storage.shared.context.save()
+    let container = Storage.shared.container
+    let cutoff = Date.now
+    if wait {
+      Self.deleteStoredItems(in: container, upTo: cutoff, includingPinned: includingPinned)
+    } else {
+      storageCleanup = Task.detached(priority: .utility) {
+        Self.deleteStoredItems(in: container, upTo: cutoff, includingPinned: includingPinned)
       }
-      Storage.shared.context.processPendingChanges()
-      try? Storage.shared.context.save()
     }
+  }
+
+  nonisolated private static func deleteStoredItems(in container: ModelContainer, upTo cutoff: Date, includingPinned: Bool) {
+    let log = Logger(label: "org.p0deje.Maccy")
+    let context = ModelContext(container)
+    context.autosaveEnabled = false
+    do {
+      let before = try context.fetchCount(FetchDescriptor<HistoryItem>())
+      // One by one so the contents go with their items; items copied after the cutoff are left alone.
+      let predicate = includingPinned
+        ? #Predicate<HistoryItem> { $0.lastCopiedAt <= cutoff }
+        : #Predicate<HistoryItem> { $0.pin == nil && $0.lastCopiedAt <= cutoff }
+      for item in try context.fetch(FetchDescriptor<HistoryItem>(predicate: predicate)) {
+        context.delete(item)
+      }
+      try context.delete(model: HistoryItemContent.self, where: #Predicate { $0.item == nil })
+      try context.save()
+      let after = try context.fetchCount(FetchDescriptor<HistoryItem>())
+      log.info("Cleared history: HistoryItem \(before) -> \(after)")
+    } catch {
+      log.error("Failed to clear storage: \(String(reflecting: error))")
+    }
+  }
+
+  @MainActor
+  func clear(wait: Bool = false) {
+    logger.info("Clearing history")
+    allUnpinnedItems.forEach(cleanup)
+    allUnpinnedItems.removeAll()
+    filteredUnpinnedItems.removeAll()
+    sessionLog.removeValues { $0.pin == nil }
+    removeStoredItems(includingPinned: false, wait: wait)
 
     Clipboard.shared.clear()
     AppState.shared.popup.close()
@@ -267,33 +296,16 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
   }
 
   @MainActor
-  func clearAll() {
-    withLogging("Clearing all history") {
-      allPinnedItems.forEach(cleanup)
-      allUnpinnedItems.forEach(cleanup)
-      allUnpinnedItems.removeAll()
-      filteredPinnedItems.removeAll()
-      filteredUnpinnedItems.removeAll()
-      pinManager.removeAll()
-      sessionLog.removeAll()
-
-      do {
-        let context = Storage.shared.context
-        try context.transaction {
-          // Bulk deletion cannot remove children with live inverse relationships.
-          try context.delete(
-            model: HistoryItemContent.self,
-            where: #Predicate { $0.item == nil }
-          )
-          try context.delete(model: HistoryItem.self)
-          try context.delete(model: HistoryItemContent.self)
-        }
-      } catch {
-        logger.error("Failed to clear storage: \(String(reflecting: error))")
-      }
-      Storage.shared.context.processPendingChanges()
-      try? Storage.shared.context.save()
-    }
+  func clearAll(wait: Bool = false) {
+    logger.info("Clearing all history")
+    allPinnedItems.forEach(cleanup)
+    allUnpinnedItems.forEach(cleanup)
+    allUnpinnedItems.removeAll()
+    filteredPinnedItems.removeAll()
+    filteredUnpinnedItems.removeAll()
+    pinManager.removeAll()
+    sessionLog.removeAll()
+    removeStoredItems(includingPinned: true, wait: wait)
 
     Clipboard.shared.clear()
     AppState.shared.popup.close()

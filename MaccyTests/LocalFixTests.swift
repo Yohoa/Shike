@@ -14,7 +14,7 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
 
   override func setUp() {
     super.setUp()
-    history.clearAll()
+    history.clearAll(wait: true)
     Defaults[.size] = 10
     Defaults[.sortBy] = .firstCopiedAt
     Defaults[.pinTo] = .bottom

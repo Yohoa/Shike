@@ -139,7 +139,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     if Defaults[.clearOnQuit] {
-      AppState.shared.history.clear()
+      AppState.shared.history.clear(wait: true)
     }
   }
 
