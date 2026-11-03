@@ -110,7 +110,7 @@ class Clipboard {
   }
 
   @MainActor
-  func copy(_ item: HistoryItem?, removeFormatting: Bool = false) {
+  func copy(_ item: HistoryItem?, removeFormatting: Bool = false, notify: Bool = true) {
     guard let item else { return }
 
     pasteboard.clearContents()
@@ -142,7 +142,7 @@ class Clipboard {
     sync()
 
     Task {
-      Notifier.notify(body: item.title, sound: .knock)
+      if notify { Notifier.notify(body: item.title, sound: .knock) }
       checkForChangesInPasteboard()
     }
   }

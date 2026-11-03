@@ -91,7 +91,7 @@ class AppState: Sendable {
       select(flags: plainText ? .shift : [])
       return
     }
-    guard Clipboard.shared.copyCombined(navigator.selection.items.map(\.item), plainText: plainText) else {
+    guard copySelectedItems(plainText: plainText) else {
       NSSound.beep()
       return
     }
@@ -101,12 +101,24 @@ class AppState: Sendable {
     Clipboard.shared.paste()
   }
 
+  /// One item goes back on the clipboard with its original data, so the history just moves it to the top
+  /// instead of recording a converted duplicate; several items are combined into one new entry.
+  @MainActor
+  private func copySelectedItems(plainText: Bool) -> Bool {
+    let items = navigator.selection.items.map(\.item)
+    guard items.count == 1, let item = items.first else {
+      return Clipboard.shared.copyCombined(items, plainText: plainText)
+    }
+    Clipboard.shared.copy(item, removeFormatting: plainText, notify: false)
+    return true
+  }
+
   /// ⌘C: put the selected item(s) on the clipboard without pasting; the popup stays open.
   @MainActor
   @discardableResult
   func copySelection() -> Bool {
     guard !navigator.selection.isEmpty else { return false }
-    guard Clipboard.shared.copyCombined(navigator.selection.items.map(\.item)) else {
+    guard copySelectedItems(plainText: false) else {
       NSSound.beep()
       return true
     }

@@ -341,6 +341,10 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     navigator.select(item: second)
     XCTAssertTrue(AppState.shared.copySelection())
     XCTAssertEqual(NSPasteboard.general.string(forType: .string), "second")
+    // The original data goes back unchanged (no RTF conversion), so the history only moves it to the top.
+    XCTAssertFalse(NSPasteboard.general.types?.contains(.rtf) ?? true)
+    XCTAssertTrue(second.item.supersedes(HistoryItem(contents: [HistoryItemContent(
+      type: NSPasteboard.PasteboardType.string.rawValue, value: "second".data(using: .utf8))])))
   }
 
   func testManualSelectionTogglesAndKeepsOrder() {
