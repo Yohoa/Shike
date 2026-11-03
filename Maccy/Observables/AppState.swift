@@ -101,6 +101,21 @@ class AppState: Sendable {
     Clipboard.shared.paste()
   }
 
+  /// ⌘C: put the selected item(s) on the clipboard without pasting.
+  @MainActor
+  @discardableResult
+  func copySelection() -> Bool {
+    guard !navigator.selection.isEmpty else { return false }
+    guard Clipboard.shared.copyCombined(navigator.selection.items.map(\.item)) else {
+      NSSound.beep()
+      return true
+    }
+    navigator.isManualMultiSelect = false
+    popup.close()
+    ToastHUD.show(NSLocalizedString("Copied", comment: "Copy toast"))
+    return true
+  }
+
   @MainActor
   func togglePin() {
     withTransaction(Transaction()) {

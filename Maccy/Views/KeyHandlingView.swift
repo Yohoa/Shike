@@ -160,6 +160,12 @@ struct KeyHandlingView<Content: View>: View {
         case .close:
           appState.popup.close()
           return .handled
+        case .copySelection:
+          // Text selected in the search field copies that text, as usual.
+          if let field = NSApp.keyWindow?.firstResponder as? NSTextView, field.selectedRange().length > 0 {
+            return .ignored
+          }
+          return appState.copySelection() ? .handled : .ignored
         case .togglePreview:
           appState.preview.togglePreview()
           return .handled

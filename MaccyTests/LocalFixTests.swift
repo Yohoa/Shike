@@ -330,6 +330,19 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     XCTAssertEqual(output.string(forType: .string), "text")
   }
 
+  func testCommandCCopiesTheSelectedItemWithoutPasting() {
+    XCTAssertEqual(KeyChord(.c, [.command]), .copySelection)
+    XCTAssertEqual(KeyChord(.c, [.command, .shift]), .ignored)
+    let navigator = AppState.shared.navigator
+    _ = history.add(historyItem("first"))
+    let second = history.add(historyItem("second"))
+    navigator.select(item: nil)
+    XCTAssertFalse(AppState.shared.copySelection())
+    navigator.select(item: second)
+    XCTAssertTrue(AppState.shared.copySelection())
+    XCTAssertEqual(NSPasteboard.general.string(forType: .string), "second")
+  }
+
   func testManualSelectionTogglesAndKeepsOrder() {
     let navigator = AppState.shared.navigator
     let first = history.add(historyItem("first"))
