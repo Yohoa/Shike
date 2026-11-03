@@ -101,7 +101,7 @@ class AppState: Sendable {
     Clipboard.shared.paste()
   }
 
-  /// ⌘C: put the selected item(s) on the clipboard without pasting.
+  /// ⌘C: put the selected item(s) on the clipboard without pasting; the popup stays open.
   @MainActor
   @discardableResult
   func copySelection() -> Bool {
@@ -110,8 +110,6 @@ class AppState: Sendable {
       NSSound.beep()
       return true
     }
-    navigator.isManualMultiSelect = false
-    popup.close()
     ToastHUD.show(NSLocalizedString("Copied", comment: "Copy toast"))
     return true
   }
