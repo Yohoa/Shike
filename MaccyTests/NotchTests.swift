@@ -26,10 +26,16 @@ final class NotchTests: XCTestCase {
     XCTAssertEqual(layout.shapeRect(.idle), CGRect(x: 650, y: 950, width: 212, height: 32))
     // Peek is only a small bump; the trigger zone stays stable and covers it.
     XCTAssertLessThanOrEqual(layout.shapeRect(.peek).width - layout.shapeRect(.idle).width, 32)
-    XCTAssertTrue(layout.hitRect(.idle).contains(layout.shapeRect(.peek)))
-    XCTAssertEqual(layout.hitRect(.idle), layout.hitRect(.peek))
+    XCTAssertTrue(layout.hitRect(.peek).contains(layout.shapeRect(.peek)))
+    // A closed shelf only wakes on the cutout itself, never below the menu bar.
+    XCTAssertEqual(layout.hitRect(.idle), layout.shapeRect(.idle))
+    XCTAssertEqual(layout.hoverRect(.idle), layout.wakeRect)
+    XCTAssertTrue(layout.hitRect(.peek).contains(layout.wakeRect))
+    XCTAssertGreaterThanOrEqual(layout.wakeRect.minY, screen.maxY - 32)
     let plain = NotchLayout(frame: screen, safeTop: 0)
     XCTAssertLessThanOrEqual(plain.shapeRect(.idle).height, 6)
+    XCTAssertLessThanOrEqual(plain.wakeRect.height, 12)
+    XCTAssertTrue(plain.hitRect(.peek).contains(plain.wakeRect))
     XCTAssertTrue(screen.contains(plain.panelFrame))
   }
   func testExternalDisplayUsesPillAndSupportsNegativeCoordinates() {

@@ -52,9 +52,19 @@ struct NotchLayout {
     return CGRect(x: x, y: screenFrame.maxY - size.height, width: size.width, height: size.height)
   }
 
+  /// Where a closed shelf wakes up: only the camera cutout itself (or a thin strip at the top edge
+  /// on plain displays), so passing just below the menu bar or clicking a tab there never peeks.
+  var wakeRect: CGRect {
+    guard !hasCutout else { return shapeRect(.idle) }
+    let size = CGSize(width: 120, height: 12)
+    let x = min(max(screenFrame.minX, center - size.width / 2), screenFrame.maxX - size.width)
+    return CGRect(x: x, y: screenFrame.maxY - size.height, width: size.width, height: size.height)
+  }
+
   func hitRect(_ phase: NotchPhase) -> CGRect {
     switch phase {
-    case .idle, .peek: triggerRect.union(shapeRect(.peek))
+    case .idle: wakeRect
+    case .peek: triggerRect.union(shapeRect(.peek))
     case .expanded: shapeRect(.expanded)
     }
   }

@@ -288,12 +288,21 @@ final class NotchModule {
     slot.host?.refreshTracking()
   }
 
+  static let peekDelay: Duration = .milliseconds(300)
+
   /// Pointer entered/left a shelf's hover rect (tracking area, no global mouse monitoring).
   func hover(_ slot: NotchScreen, _ inside: Bool) {
     slot.hoverTask?.cancel()
     guard enabled else { return }
     if inside {
-      if slot.phase == .idle { setPhase(slot, .peek) }
+      guard slot.phase == .idle else { return }
+      // Peek only when the pointer rests on the notch, not when it passes over on its way to the menu bar.
+      slot.hoverTask = Task { [weak self, weak slot] in
+        try? await Task.sleep(for: NotchModule.peekDelay)
+        guard !Task.isCancelled, let self, let slot, self.enabled, slot.phase == .idle,
+              slot.layout.wakeRect.contains(NSEvent.mouseLocation) else { return }
+        self.setPhase(slot, .peek)
+      }
       return
     }
     guard slot.phase != .idle else { return }
@@ -442,18 +451,22 @@ final class NotchModule {
     }
   }
   private func readPower() {
-    lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
-    guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-          let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { battery = nil; return }
-    battery = nil
-    for source in list {
-      guard let desc = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
-            desc[kIOPSTypeKey] as? String == kIOPSInternalBatteryType else { continue }
-      battery = NotchBattery(current: desc[kIOPSCurrentCapacityKey] as? Int, maximum: desc[kIOPSMaxCapacityKey] as? Int,
-                             charging: desc[kIOPSIsChargingKey] as? Bool ?? false,
-                             onAC: desc[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue)
-      break
+    // Assign only real changes: every assignment redraws the shelf, and this fires about once a minute.
+    let low = ProcessInfo.processInfo.isLowPowerModeEnabled
+    if lowPower != low { lowPower = low }
+    var reading: NotchBattery?
+    if let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+       let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] {
+      for source in list {
+        guard let desc = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
+              desc[kIOPSTypeKey] as? String == kIOPSInternalBatteryType else { continue }
+        reading = NotchBattery(current: desc[kIOPSCurrentCapacityKey] as? Int, maximum: desc[kIOPSMaxCapacityKey] as? Int,
+                               charging: desc[kIOPSIsChargingKey] as? Bool ?? false,
+                               onAC: desc[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue)
+        break
+      }
     }
+    if battery != reading { battery = reading }
   }
 }
 

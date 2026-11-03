@@ -64,6 +64,8 @@ class Clipboard {
       userInfo: nil,
       repeats: true
     )
+    // Let macOS batch this wakeup with others; a copy is still seen well within one interval.
+    timer?.tolerance = Defaults[.clipboardCheckInterval] * 0.2
   }
 
   func restart() {
