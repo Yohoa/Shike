@@ -113,8 +113,8 @@ class AppState: Sendable {
     return true
   }
 
-  /// ⌘C: put the selected item(s) on the clipboard without pasting, then fade the popup out
-  /// (or keep it open, per Settings → General).
+  /// ⌘C: put the selected item(s) on the clipboard without pasting, then close the popup with its usual
+  /// quick fade (or keep it open, per Settings → General).
   @MainActor
   @discardableResult
   func copySelection() -> Bool {
@@ -124,7 +124,7 @@ class AppState: Sendable {
       return true
     }
     ToastHUD.show(NSLocalizedString("Copied", comment: "Copy toast"))
-    if !Defaults[.keepPopupOpenAfterCopy] { popup.fadeOut(over: 0.5) }
+    if !Defaults[.keepPopupOpenAfterCopy] { popup.close() }
     return true
   }
 

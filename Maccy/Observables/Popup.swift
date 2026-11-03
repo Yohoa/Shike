@@ -94,10 +94,6 @@ class Popup {
     AppState.shared.appDelegate?.panel.close()  // close() calls reset
   }
 
-  func fadeOut(over duration: TimeInterval) {
-    AppState.shared.appDelegate?.panel.fadeOut(over: duration)
-  }
-
   func isClosed() -> Bool {
     AppState.shared.appDelegate?.panel.isPresented != true
   }

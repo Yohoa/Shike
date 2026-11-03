@@ -222,18 +222,9 @@ class FloatingPanel<Content: View>: NSPanel, NSWindowDelegate {
 
   private var fadeGeneration = 0
   private var finishing = false
-  private var nextFadeDuration: TimeInterval?
-
-  /// A slower fade than the usual close, e.g. after ⌘C copied an item.
-  func fadeOut(over duration: TimeInterval) {
-    nextFadeDuration = duration
-    close()
-  }
 
   override func close() {
     if finishing { return }  // super.close() resigns key, which calls close() again
-    let fadeDuration = nextFadeDuration ?? 0.16
-    nextFadeDuration = nil
     // No fade while image tools run (screenshot/OCR): their result is added to history and the busy
     // indicator disappears in the same turn, and resizing a still-visible, fading panel made SwiftUI's
     // animated window sizing loop until AppKit aborted ("Update Constraints in Window" limit).
@@ -249,7 +240,7 @@ class FloatingPanel<Content: View>: NSPanel, NSWindowDelegate {
     fadeGeneration += 1
     let generation = fadeGeneration
     NSAnimationContext.runAnimationGroup({ context in
-      context.duration = fadeDuration
+      context.duration = 0.16
       context.timingFunction = CAMediaTimingFunction(name: .easeIn)
       animator().alphaValue = 0
     }, completionHandler: { [weak self] in
