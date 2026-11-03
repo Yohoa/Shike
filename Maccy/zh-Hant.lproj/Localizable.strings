@@ -298,3 +298,4 @@
 /* Annotation and pinned images */
 "Close after copy" = "拷貝後關閉";
 "Image copied" = "圖片已拷貝";
+"Keep the list open after ⌘C" = "按 ⌘C 拷貝後保持列表打開";
