@@ -288,21 +288,12 @@ final class NotchModule {
     slot.host?.refreshTracking()
   }
 
-  static let peekDelay: Duration = .milliseconds(300)
-
   /// Pointer entered/left a shelf's hover rect (tracking area, no global mouse monitoring).
   func hover(_ slot: NotchScreen, _ inside: Bool) {
     slot.hoverTask?.cancel()
     guard enabled else { return }
     if inside {
-      guard slot.phase == .idle else { return }
-      // Peek only when the pointer rests on the notch, not when it passes over on its way to the menu bar.
-      slot.hoverTask = Task { [weak self, weak slot] in
-        try? await Task.sleep(for: NotchModule.peekDelay)
-        guard !Task.isCancelled, let self, let slot, self.enabled, slot.phase == .idle,
-              slot.layout.wakeRect.contains(NSEvent.mouseLocation) else { return }
-        self.setPhase(slot, .peek)
-      }
+      if slot.phase == .idle { setPhase(slot, .peek) }
       return
     }
     guard slot.phase != .idle else { return }
