@@ -230,12 +230,16 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
     attributedTitle = attributedString
   }
 
+  /// The item was deleted from the history; its decorator may still get one last change callback,
+  /// and reading a deleted item's contents traps in SwiftData.
+  private var itemIsGone: Bool { HistoryItem.isGone(item) }
+
   private func synchronizeItemPin() {
     _ = withObservationTracking {
       item.pin
     } onChange: { [weak self] in
       DispatchQueue.main.async { [weak self] in
-        guard let self else { return }
+        guard let self, !self.itemIsGone else { return }
         if let pin = self.item.pin {
           self.shortcuts = KeyShortcut.create(character: pin)
         }
@@ -251,7 +255,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
       item.title
     } onChange: { [weak self] in
       DispatchQueue.main.async { [weak self] in
-        guard let self else { return }
+        guard let self, !self.itemIsGone else { return }
         self.title = self.item.title
         self.synchronizeItemTitle()
       }
@@ -263,7 +267,8 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
       SizedString(item.previewableText, maxParagraphBytes: Self.previewMaxParagraphSize)
     } onChange: { [weak self] in
       DispatchQueue.main.async { [weak self] in
-        self?.synchronizeItemText()
+        guard let self, !self.itemIsGone else { return }
+        self.synchronizeItemText()
       }
     }
   }

@@ -359,6 +359,75 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     XCTAssertEqual(Storage.detachedValue(of: saved, in: container), big)
   }
 
+  func testReplacedDuplicateDoesNotReadDeletedContents() throws {
+    let rich = { () -> HistoryItem in
+      HistoryItem(contents: [
+        HistoryItemContent(type: NSPasteboard.PasteboardType.html.rawValue, value: Data("<b>dup</b>".utf8)),
+        HistoryItemContent(type: NSPasteboard.PasteboardType.rtf.rawValue, value: Data("{\\rtf1 dup}".utf8))
+      ])
+    }
+    let old = history.add(rich())
+    try Storage.shared.context.save()
+    let new = history.add(rich())
+    try Storage.shared.context.save()
+    // The replaced decorator's observation fires later on the main queue; both must stay readable.
+    RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+    _ = old.item.previewableText
+    _ = new.item.previewableText
+    XCTAssertEqual(history.items.count, 1)
+  }
+
+  func testItemWhoseContentWasDeletedStaysReadable() throws {
+    let item = HistoryItem(contents: [
+      HistoryItemContent(type: NSPasteboard.PasteboardType.html.rawValue, value: Data("<b>x</b>".utf8)),
+      HistoryItemContent(type: NSPasteboard.PasteboardType.rtf.rawValue, value: Data("{\\rtf1 x}".utf8))
+    ])
+    let decorator = history.add(item)
+    try Storage.shared.context.save()
+    let html = try XCTUnwrap(item.contents.first { $0.type == NSPasteboard.PasteboardType.html.rawValue })
+    Storage.shared.context.delete(html)
+    try Storage.shared.context.save()
+    RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+    _ = decorator.item.previewableText
+    _ = item.previewableText
+  }
+
+  func testItemDeletedInAnotherContextStaysReadable() throws {
+    let item = HistoryItem(contents: [
+      HistoryItemContent(type: NSPasteboard.PasteboardType.html.rawValue, value: Data("<b>y</b>".utf8)),
+      HistoryItemContent(type: NSPasteboard.PasteboardType.rtf.rawValue, value: Data("{\\rtf1 y}".utf8))
+    ])
+    let decorator = history.add(item)
+    try Storage.shared.context.save()
+    let other = ModelContext(Storage.shared.container)
+    for stored in try other.fetch(FetchDescriptor<HistoryItem>()) { other.delete(stored) }
+    try other.delete(model: HistoryItemContent.self, where: #Predicate { $0.item == nil })
+    try other.save()
+    RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+    _ = decorator.item.previewableText
+    _ = decorator.item.title
+  }
+
+  func testDeletedItemWithUnreadExternalValuesDoesNotTrap() throws {
+    let folder = FileManager.default.temporaryDirectory.appending(path: "shike-del-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let container = try ModelContainer(for: HistoryItem.self,
+                                       configurations: ModelConfiguration(url: folder.appending(path: "Storage.sqlite")))
+    let html = Data(("<p>" + String(repeating: "x", count: 300_000) + "</p>").utf8)
+    let setup = ModelContext(container)
+    setup.insert(HistoryItem(contents: [HistoryItemContent(type: NSPasteboard.PasteboardType.html.rawValue, value: html)]))
+    try setup.save()
+
+    // As when the history is trimmed: the item is fetched, never read, then deleted.
+    let context = ModelContext(container)
+    let item = try XCTUnwrap(context.fetch(FetchDescriptor<HistoryItem>()).first)
+    context.delete(item)
+    try context.save()
+    _ = item.previewableText  // used to trap: "detached from a context without resolving attribute faults"
+    XCTAssertNil(item.htmlData)
+  }
+
   func testDuplicatesAreFoundByDigestAndImagesByType() {
     let image = Data((0..<1000).map { UInt8(truncatingIfNeeded: $0) })
     let first = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: image)])

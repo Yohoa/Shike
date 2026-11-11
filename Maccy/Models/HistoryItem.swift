@@ -177,13 +177,13 @@ class HistoryItem {
 
   /// Whether this item is an image, decided from the content types alone (no data is read).
   var hasImage: Bool {
-    contents.contains { Self.imageTypes.contains(NSPasteboard.PasteboardType($0.type)) } || universalClipboardImage
+    readableContents.contains { Self.imageTypes.contains(NSPasteboard.PasteboardType($0.type)) } || universalClipboardImage
   }
 
   /// Image data is read through a throwaway context, so the history never keeps whole images in memory.
   var imageData: Data? {
     var data: Data?
-    if let content = contents.first(where: { Self.imageTypes.contains(NSPasteboard.PasteboardType($0.type)) }) {
+    if let content = readableContents.first(where: { Self.imageTypes.contains(NSPasteboard.PasteboardType($0.type)) }) {
       data = content.modelContext.flatMap { Storage.detachedValue(of: content, in: $0.container) } ?? content.value
     }
     if data == nil, universalClipboardImage, let url = fileURLs.first {
@@ -285,8 +285,20 @@ class HistoryItem {
     universalClipboard && contentData([.html, .tiff, .png, .jpeg, .rtf, .string, .heic]) != nil
   }
 
+  /// Contents that can still be read. Large values stay on disk until read, so a content deleted from the
+  /// store (the history trimmed, a duplicate replaced) must not be read any more: SwiftData traps on it.
+  private var readableContents: [HistoryItemContent] {
+    guard !Self.isGone(self) else { return [] }
+    return contents.filter { !Self.isGone($0) }
+  }
+
+  /// Deleted, or saved once and no longer in a context. An item that was never stored has no store id yet.
+  nonisolated static func isGone(_ model: some PersistentModel) -> Bool {
+    model.isDeleted || (model.modelContext == nil && model.persistentModelID.storeIdentifier != nil)
+  }
+
   private func contentData(_ types: [NSPasteboard.PasteboardType]) -> Data? {
-    let content = contents.first(where: { content in
+    let content = readableContents.first(where: { content in
       return types.contains(NSPasteboard.PasteboardType(content.type))
     })
 
@@ -294,7 +306,7 @@ class HistoryItem {
   }
 
   private func allContentData(_ types: [NSPasteboard.PasteboardType]) -> [Data] {
-    return contents
+    return readableContents
       .filter { types.contains(NSPasteboard.PasteboardType($0.type)) }
       .compactMap { $0.value }
   }
