@@ -1,6 +1,7 @@
 import AppKit
 import Defaults
 import KeyboardShortcuts
+import SwiftData
 import XCTest
 @testable import Maccy
 
@@ -328,6 +329,49 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     let image = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: Data([1, 2, 3]))])
     let output = try XCTUnwrap(HistoryDragPayload.clipboardItem(items: [image, historyItem("text")], plainText: true))
     XCTAssertEqual(output.string(forType: .string), "text")
+  }
+
+  func testExternalizingMovesLargeValuesOutAndAddsDigests() throws {
+    let folder = FileManager.default.temporaryDirectory.appending(path: "shike-ext-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let container = try ModelContainer(for: HistoryItem.self,
+                                       configurations: ModelConfiguration(url: folder.appending(path: "Storage.sqlite")))
+    let big = Data((0..<300_000).map { UInt8(truncatingIfNeeded: $0 &* 7) })
+    let setup = ModelContext(container)
+    let item = HistoryItem(contents: [HistoryItemContent(type: "public.tiff", value: big),
+                                      HistoryItemContent(type: "public.utf8-plain-text", value: Data("hi".utf8))])
+    setup.insert(item)
+    item.contents.forEach { $0.digest = nil }  // as stored before 2.8.28
+    try setup.save()
+
+    Storage.externalize(in: container)
+
+    let check = ModelContext(container)
+    let contents = try check.fetch(FetchDescriptor<HistoryItemContent>())
+    XCTAssertEqual(contents.count, 2)
+    XCTAssertTrue(contents.allSatisfy { $0.digest != nil && $0.item != nil })
+    XCTAssertEqual(contents.first { $0.type == "public.tiff" }?.value, big)
+    XCTAssertEqual(contents.first { $0.type == "public.tiff" }?.digest, HistoryItemContent.digest(of: big))
+    let external = folder.appending(path: ".Storage_SUPPORT/_EXTERNAL_DATA")
+    XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: external.path).count, 1)
+    let saved = try XCTUnwrap(contents.first { $0.type == "public.tiff" })
+    XCTAssertEqual(Storage.detachedValue(of: saved, in: container), big)
+  }
+
+  func testDuplicatesAreFoundByDigestAndImagesByType() {
+    let image = Data((0..<1000).map { UInt8(truncatingIfNeeded: $0) })
+    let first = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: image)])
+    let same = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: image)])
+    let other = HistoryItem(contents: [HistoryItemContent(type: "public.png", value: image + Data([1]))])
+    XCTAssertTrue(first.supersedes(same))
+    XCTAssertFalse(first.supersedes(other))
+    XCTAssertTrue(first.hasImage)
+    XCTAssertFalse(historyItem("text").hasImage)
+    let content = HistoryItemContent(type: "public.utf8-plain-text", value: nil)
+    XCTAssertEqual(content.digest, "")
+    content.setValue(Data("x".utf8))
+    XCTAssertEqual(content.digest, HistoryItemContent.digest(of: Data("x".utf8)))
   }
 
   func testCommandCCopiesTheSelectedItemWithoutPasting() {

@@ -41,7 +41,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
     return url.deletingPathExtension().lastPathComponent
   }
 
-  var hasImage: Bool { item.imageData != nil }
+  var hasImage: Bool { item.hasImage }
   var hasFileURLs: Bool { !item.fileURLs.isEmpty }
   var hasPlainText: Bool { item.text != nil }
   var hasRichText: Bool { item.rtf != nil || item.html != nil }
@@ -125,7 +125,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
 
   @MainActor
   func ensureThumbnailImage() {
-    guard item.imageData != nil else {
+    guard item.hasImage else {
       return
     }
     guard thumbnailImage == nil else {
@@ -142,7 +142,7 @@ class HistoryItemDecorator: Identifiable, Hashable, HasVisibility {
 
   @MainActor
   func ensurePreviewImage() {
-    guard item.imageData != nil else {
+    guard item.hasImage else {
       return
     }
     guard previewImage == nil else {

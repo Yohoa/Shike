@@ -44,7 +44,7 @@ struct HistoryDragPayload {
     guard !items.isEmpty else { return nil }
     var values: [String] = []
     for item in items {
-      guard item.imageData == nil, item.fileURLs.isEmpty else { return nil }
+      guard !item.hasImage, item.fileURLs.isEmpty else { return nil }
       if let text = item.text {
         values.append(text)
       } else if let text = item.rtf?.string ?? item.html?.string {

@@ -124,8 +124,10 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
 
   @MainActor
   func load() async throws {
+    await Storage.shared.externalizeIfNeeded()
     let descriptor = FetchDescriptor<HistoryItem>()
     let results = try Storage.shared.context.fetch(descriptor)
+    Storage.log.notice("Loaded \(results.count) history items")
     let decorators = sorter.sort(results).map { HistoryItemDecorator($0) }
     pinManager.load(from: decorators)
     allUnpinnedItems = decorators.filter(\.isUnpinned)
@@ -581,7 +583,7 @@ class History: ItemsContainer { // swiftlint:disable:this type_body_length
 
   @MainActor
   private func updateTitlesForSpecialSymbols() {
-    for item in items where item.item.imageData == nil {
+    for item in items where !item.item.hasImage {
       updateTitle(item: item, title: item.item.generateTitle())
     }
   }

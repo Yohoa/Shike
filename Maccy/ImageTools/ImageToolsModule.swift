@@ -187,13 +187,13 @@ final class ImageToolsModule {
   }
 
   func menu(items: [HistoryItem]) -> NSMenu? {
-    guard enabled, items.contains(where: { $0.imageData != nil }) else { return nil }
+    guard enabled, items.contains(where: { $0.hasImage }) else { return nil }
     let menu = NSMenu()
     func add(_ title: String, _ action: @escaping @MainActor () -> Void) { menu.addItem(WorkbenchMenuItem(title: tr(title), action: action)) }
-    add("Annotate…") { if let data = items.first(where: { $0.imageData != nil })?.imageData { self.editor(data) } }
-    add("Pin to Screen") { if let data = items.first(where: { $0.imageData != nil })?.imageData { self.pin(data) } }
-    add("Run OCR") { if let data = items.first(where: { $0.imageData != nil })?.imageData { self.recognize(data, qr: false) } }
-    add("Scan QR Code") { if let data = items.first(where: { $0.imageData != nil })?.imageData { self.recognize(data, qr: true) } }
+    add("Annotate…") { if let data = items.first(where: { $0.hasImage })?.imageData { self.editor(data) } }
+    add("Pin to Screen") { if let data = items.first(where: { $0.hasImage })?.imageData { self.pin(data) } }
+    add("Run OCR") { if let data = items.first(where: { $0.hasImage })?.imageData { self.recognize(data, qr: false) } }
+    add("Scan QR Code") { if let data = items.first(where: { $0.hasImage })?.imageData { self.recognize(data, qr: true) } }
     menu.addItem(.separator())
     let tools = NSMenu()
     tools.addItem(WorkbenchMenuItem(title: tr("Combine with…")) { self.combine(items) })
@@ -397,16 +397,16 @@ struct ImageToolsBar: View {
           Button("Screenshot + OCR") { module.capture(ocr: true) }
         } label: { Label("Screenshot", systemImage: "camera.viewfinder") }
         Menu {
-          Button("Annotate…") { if let data = items.first(where: { $0.imageData != nil })?.imageData { module.editor(data) } }
-          Button("Pin to Screen") { if let data = items.first(where: { $0.imageData != nil })?.imageData { module.pin(data) } }
-          Button("Run OCR") { if let data = items.first(where: { $0.imageData != nil })?.imageData { module.recognize(data, qr: false) } }
-          Button("Scan QR Code") { if let data = items.first(where: { $0.imageData != nil })?.imageData { module.recognize(data, qr: true) } }
+          Button("Annotate…") { if let data = items.first(where: { $0.hasImage })?.imageData { module.editor(data) } }
+          Button("Pin to Screen") { if let data = items.first(where: { $0.hasImage })?.imageData { module.pin(data) } }
+          Button("Run OCR") { if let data = items.first(where: { $0.hasImage })?.imageData { module.recognize(data, qr: false) } }
+          Button("Scan QR Code") { if let data = items.first(where: { $0.hasImage })?.imageData { module.recognize(data, qr: true) } }
           Divider()
           Button("Combine with…") { module.combine(items) }
           Button("Combine vertically…") { module.combine(items, vertical: true) }
           Button("Before / After GIF…") { module.combine(items, gif: true) }
         } label: { Label("Image Tools", systemImage: "wand.and.stars") }
-        .disabled(!items.contains(where: { $0.imageData != nil }))
+        .disabled(!items.contains(where: { $0.hasImage }))
         Spacer()
         if module.busy { ProgressView().controlSize(.small) }
       }.menuStyle(.borderlessButton).disabled(module.busy).padding(.horizontal, 10).padding(.vertical, 4)

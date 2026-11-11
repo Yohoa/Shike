@@ -99,7 +99,7 @@ class HistoryItem {
         !Self.transientTypes.contains(content.type)
       }
       .allSatisfy { content in
-        contents.contains(where: { $0.type == content.type && $0.value == content.value })
+        contents.contains(where: { $0.matches(content) })
       }
   }
 
@@ -175,9 +175,17 @@ class HistoryItem {
     return NSAttributedString(html: data, documentAttributes: nil)
   }
 
+  /// Whether this item is an image, decided from the content types alone (no data is read).
+  var hasImage: Bool {
+    contents.contains { Self.imageTypes.contains(NSPasteboard.PasteboardType($0.type)) } || universalClipboardImage
+  }
+
+  /// Image data is read through a throwaway context, so the history never keeps whole images in memory.
   var imageData: Data? {
     var data: Data?
-    data = contentData(Self.imageTypes)
+    if let content = contents.first(where: { Self.imageTypes.contains(NSPasteboard.PasteboardType($0.type)) }) {
+      data = content.modelContext.flatMap { Storage.detachedValue(of: content, in: $0.container) } ?? content.value
+    }
     if data == nil, universalClipboardImage, let url = fileURLs.first {
       data = try? Data(contentsOf: url)
     }
