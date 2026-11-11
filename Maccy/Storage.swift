@@ -52,6 +52,7 @@ class Storage {
       let all = (try? ModelContext(container).fetchCount(FetchDescriptor<HistoryItemContent>())) ?? -1
       let sqlite = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? -1
       let externalFiles = (try? FileManager.default.contentsOfDirectory(atPath: externalDataURL.path).count) ?? -1
+      if pending == 0 { Self.removeBackup(url) }
       Self.log.notice("Store: \(all) contents, \(pending) without digest, SQLite \(sqlite) B, \(externalFiles) external files, \(Self.directorySize(self.externalDataURL)) B external")
     }
   }
@@ -71,6 +72,21 @@ class Storage {
     }
     UserDefaults.standard.set(true, forKey: backedUpKey)
     log.notice("Backed up the store before moving large values out of it")
+  }
+
+  /// The migration is done and the store opened fine: the copy made before it is no longer needed.
+  private static func removeBackup(_ url: URL) {
+    let base = url.deletingPathExtension().lastPathComponent
+    for suffix in ["", "-wal", "-shm"] {
+      let backup = url.deletingLastPathComponent().appending(path: base + backupSuffix + ".sqlite" + suffix)
+      guard FileManager.default.fileExists(atPath: backup.path) else { continue }
+      do {
+        try FileManager.default.removeItem(at: backup)
+        log.notice("Removed backup \(backup.lastPathComponent)")
+      } catch {
+        log.error("Removing backup failed: \(error)")
+      }
+    }
   }
 
   /// Moving values out of SQLite leaves its pages free; give that space back once, before the store opens.
