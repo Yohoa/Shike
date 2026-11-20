@@ -286,6 +286,17 @@ private final class WorkbenchWindow: NSWindow, NSWindowDelegate {
   var pinKeys = false
   var originalSize = NSSize.zero
   override var canBecomeKey: Bool { true }
+  /// A pinned picture moves when dragged anywhere except its edge (resizing) and its controls. The window starts
+  /// the drag itself, because a SwiftUI hosting view does not pass a plain click on to its views behind the content.
+  override func sendEvent(_ event: NSEvent) {
+    if pinKeys, event.type == .leftMouseDown, event.clickCount == 1, let content = contentView,
+       NSInsetRect(content.bounds, 8, 8).contains(content.convert(event.locationInWindow, from: nil)),
+       content.hitTest(content.convert(event.locationInWindow, from: nil))?.mouseDownCanMoveWindow == true {
+      performDrag(with: event)
+      return
+    }
+    super.sendEvent(event)
+  }
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     guard pinKeys, event.modifierFlags.intersection([.command, .option, .control]) == .command else {
       return super.performKeyEquivalent(with: event)
