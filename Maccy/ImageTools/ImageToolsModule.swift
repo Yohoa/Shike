@@ -87,9 +87,8 @@ final class ImageToolsModule {
       let model = PinModel()
       AppState.shared.popup.close()
       let window = present(title: tr("Pin to Screen"), view: PinnedImageView(image: NSImage(cgImage: image, size: .zero), model: model),
-                           size: NSSize(width: width.rounded(), height: height.rounded()), floating: true, chromeless: true,
-                           hover: { model.hovering = $0 })
-      model.close = { [weak window] in window?.close() }
+                           size: NSSize(width: width.rounded(), height: height.rounded()), floating: true, chromeless: true)
+      (window as? WorkbenchWindow)?.pinModel = model
     } catch { showError(error) }
   }
 
@@ -286,16 +285,33 @@ private final class WorkbenchWindow: NSWindow, NSWindowDelegate {
   var pinKeys = false
   var originalSize = NSSize.zero
   override var canBecomeKey: Bool { true }
-  /// A pinned picture moves when dragged anywhere except its edge (resizing) and its controls. The window starts
-  /// the drag itself, because a SwiftUI hosting view does not pass a plain click on to its views behind the content.
+  /// The model of a pinned picture (nil for other windows).
+  var pinModel: PinModel?
+  /// A pinned picture has no controls: drag moves it, scroll or pinch zooms it, Shift + scroll sets the opacity,
+  /// Escape closes it. The window handles these itself, because a SwiftUI hosting view does not pass plain clicks
+  /// or scrolls on to views behind its content.
   override func sendEvent(_ event: NSEvent) {
-    if pinKeys, event.type == .leftMouseDown, event.clickCount == 1, let content = contentView,
-       NSInsetRect(content.bounds, 8, 8).contains(content.convert(event.locationInWindow, from: nil)),
-       content.hitTest(content.convert(event.locationInWindow, from: nil))?.mouseDownCanMoveWindow == true {
+    guard pinKeys else { return super.sendEvent(event) }
+    switch event.type {
+    case .leftMouseDown where event.clickCount == 1:
+      NSApp.activate(ignoringOtherApps: true)
+      makeKey()
       performDrag(with: event)
-      return
+    case .scrollWheel:
+      let raw = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) ? event.scrollingDeltaX : event.scrollingDeltaY
+      let delta = raw * (event.hasPreciseScrollingDeltas ? 1 : 6)
+      if event.modifierFlags.contains(.shift) {
+        pinModel?.opacity = min(max((pinModel?.opacity ?? 1) + Double(delta) * 0.004, 0.15), 1)
+      } else {
+        zoom(by: exp(delta * 0.004), animate: false, anchoredAtPointer: true)
+      }
+    case .magnify:
+      zoom(by: 1 + event.magnification, animate: false, anchoredAtPointer: true)
+    case .keyDown where event.keyCode == 53:
+      close()
+    default:
+      super.sendEvent(event)
     }
-    super.sendEvent(event)
   }
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     guard pinKeys, event.modifierFlags.intersection([.command, .option, .control]) == .command else {
@@ -309,17 +325,25 @@ private final class WorkbenchWindow: NSWindow, NSWindowDelegate {
     }
     return true
   }
-  private func zoom(by factor: CGFloat) { zoom(to: frame.width * factor) }
+  private func zoom(by factor: CGFloat, animate: Bool = true, anchoredAtPointer: Bool = false) {
+    zoom(to: frame.width * factor, animate: animate, anchoredAtPointer: anchoredAtPointer)
+  }
   /// Resizes around the window's centre, keeping the aspect ratio, between the minimum and the screen.
-  private func zoom(to requested: CGFloat) {
+  private func zoom(to requested: CGFloat, animate: Bool = true, anchoredAtPointer: Bool = false) {
     let area = (screen ?? NSScreen.main)?.visibleFrame ?? frame
     let ratio = frame.height / frame.width
     let width = min(max(requested, minSize.width), area.width, area.height / ratio).rounded()
     let size = NSSize(width: width, height: (width * ratio).rounded())
     var target = NSRect(x: frame.midX - size.width / 2, y: frame.midY - size.height / 2, width: size.width, height: size.height)
+    if anchoredAtPointer {
+      // The point under the pointer stays under it while the picture grows or shrinks.
+      let pointer = NSEvent.mouseLocation
+      let scale = size.width / frame.width
+      target.origin = NSPoint(x: pointer.x - (pointer.x - frame.minX) * scale, y: pointer.y - (pointer.y - frame.minY) * scale)
+    }
     target.origin.x = min(max(target.minX, area.minX), area.maxX - target.width)
     target.origin.y = min(max(target.minY, area.minY), area.maxY - target.height)
-    setFrame(target, display: true, animate: true)
+    setFrame(target, display: true, animate: animate)
   }
   func windowWillClose(_ notification: Notification) {
     contentView = nil
@@ -345,25 +369,11 @@ struct RecognitionResultView: View {
 
 @Observable
 final class PinModel {
-  var hovering = false
   var opacity = 1.0
-  var close: () -> Void = {}
 }
 
-/// Dragging anywhere on the picture moves the window. A SwiftUI hosting view never lets a plain click move its window
-/// (`isMovableByWindowBackground` has no effect on it), so this AppKit view sits behind the picture and starts the
-/// drag itself; the buttons and the slider above it still get their own clicks.
-private struct WindowDragHandle: NSViewRepresentable {
-  func makeNSView(context: Context) -> NSView { DragView() }
-  func updateNSView(_ view: NSView, context: Context) {}
-  final class DragView: NSView {
-    override var mouseDownCanMoveWindow: Bool { true }
-    override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
-  }
-}
-
-/// A pinned image: just the picture until the pointer comes near, then a border, a close button and an opacity slider
-/// (like iPhone Mirroring's title bar). The window itself is transparent, so lowering the opacity shows what is behind.
+/// A pinned image: just the picture, with its own opacity. The window itself is transparent, so lowering the opacity
+/// shows what is behind. Drag, scroll, Shift + scroll and Escape are handled by `WorkbenchWindow`.
 struct PinnedImageView: View {
   let image: NSImage
   var model: PinModel
@@ -372,26 +382,7 @@ struct PinnedImageView: View {
   var body: some View {
     Image(nsImage: image).resizable().scaledToFit()
       .opacity(model.opacity)
-      .background(WindowDragHandle())
-      .overlay(alignment: .top) {
-        HStack(spacing: 8) {
-          Button { model.close() } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .bold)) }
-            .buttonStyle(.plain).help(NSLocalizedString("Close", comment: "Close"))
-          Image(systemName: "circle.lefthalf.filled").font(.system(size: 11))
-          Slider(value: Binding(get: { model.opacity }, set: { model.opacity = $0 }), in: 0.15...1)
-            .controlSize(.mini).frame(maxWidth: 120)
-            .help(NSLocalizedString("Opacity", comment: "Pinned image opacity"))
-        }
-        .padding(.horizontal, 10).padding(.vertical, 6)
-        .background(.regularMaterial, in: Capsule())
-        .padding(8)
-        .opacity(model.hovering ? 1 : 0)
-      }
-      .overlay(RoundedRectangle(cornerRadius: corner).strokeBorder(Color.white.opacity(0.6), lineWidth: 1.5)
-        .opacity(model.hovering ? 1 : 0))
       .clipShape(RoundedRectangle(cornerRadius: corner))
-      .animation(.easeInOut(duration: 0.15), value: model.hovering)
-      .contextMenu { Button("Close") { model.close() } }
   }
 }
 

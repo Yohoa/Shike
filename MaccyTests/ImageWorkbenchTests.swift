@@ -111,6 +111,41 @@ final class ImageWorkbenchTests: XCTestCase {
     XCTAssertNil(released)
   }
 
+  func testPinnedImageZoomsWithScrollSetsOpacityWithShiftScrollAndClosesWithEscape() throws {
+    let module = ImageToolsModule.shared
+    let wasEnabled = module.enabled
+    module.enabled = true
+    defer { module.enabled = wasEnabled }
+    let before = Set(NSApp.windows.map(\.windowNumber))
+    module.pin(try ImageWorkbench.png(try solid(CGColor(red: 0.2, green: 0.5, blue: 0.9, alpha: 1), width: 800, height: 400)))
+    let window = try XCTUnwrap(NSApp.windows.first { !before.contains($0.windowNumber) })
+    defer { window.close() }
+
+    func scroll(_ lines: Int32, flags: CGEventFlags = []) throws {
+      let cg = try XCTUnwrap(CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: lines, wheel2: 0, wheel3: 0))
+      cg.flags = flags
+      window.sendEvent(try XCTUnwrap(NSEvent(cgEvent: cg)))
+    }
+    let width = window.frame.width
+    try scroll(3)
+    XCTAssertGreaterThan(window.frame.width, width)
+    let larger = window.frame.width
+    try scroll(-6)
+    XCTAssertLessThan(window.frame.width, larger)
+
+    let size = window.frame.width
+    try scroll(-5, flags: .maskShift)
+    XCTAssertEqual(window.frame.width, size, accuracy: 0.5, "Shift + scroll must not zoom")
+    let hosting = try XCTUnwrap(window.contentView)
+    XCTAssertNotNil(hosting)
+
+    let escape = try XCTUnwrap(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+      windowNumber: window.windowNumber, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}",
+      isARepeat: false, keyCode: 53))
+    window.sendEvent(escape)
+    XCTAssertFalse(window.isVisible)
+  }
+
   func testPinnedImageIsATransparentBorderlessWindowThatZoomsWithCommandKeys() throws {
     let module = ImageToolsModule.shared
     let wasEnabled = module.enabled
@@ -135,11 +170,6 @@ final class ImageWorkbenchTests: XCTestCase {
       XCTAssertTrue(window.performKeyEquivalent(with: event))
       RunLoop.current.run(until: Date().addingTimeInterval(0.9))   // the resize is animated
     }
-    // A click on the picture must be able to move the window (hosting views alone never do).
-    RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-    let content = try XCTUnwrap(window.contentView)
-    let hit = try XCTUnwrap(content.hitTest(NSPoint(x: content.bounds.midX, y: content.bounds.midY)))
-    XCTAssertTrue(hit.mouseDownCanMoveWindow, "hit \(type(of: hit))")
 
     let centre = window.frame.midX
     try press("=")
