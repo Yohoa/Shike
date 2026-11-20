@@ -93,6 +93,20 @@ struct KeyHandlingView<Content: View>: View {
 
           appState.navigator.highlightLast()
           return .handled
+        case .pageDown:
+          guard NSApp.characterPickerWindow == nil else {
+            return .ignored
+          }
+
+          appState.navigator.highlightPage(down: true)
+          return .handled
+        case .pageUp:
+          guard NSApp.characterPickerWindow == nil else {
+            return .ignored
+          }
+
+          appState.navigator.highlightPage(down: false)
+          return .handled
         case .moveToPrevious:
           guard NSApp.characterPickerWindow == nil else {
             return .ignored

@@ -443,6 +443,21 @@ final class LocalFixTests: XCTestCase { // swiftlint:disable:this type_body_leng
     XCTAssertEqual(content.digest, HistoryItemContent.digest(of: Data("x".utf8)))
   }
 
+  func testPageKeysMoveByAPageInsteadOfJumpingToTheEnds() {
+    XCTAssertEqual(KeyChord(.pageDown, []), .pageDown)
+    XCTAssertEqual(KeyChord(.pageUp, []), .pageUp)
+    let navigator = AppState.shared.navigator
+    var added: [HistoryItemDecorator] = []
+    for index in 0..<60 { added.append(history.add(historyItem("page item \(index)"))) }
+    navigator.select(item: history.firstVisibleItem)
+    navigator.highlightPage(down: true)
+    let moved = added.firstIndex { $0.id == navigator.leadSelection } ?? -1
+    XCTAssertGreaterThan(moved, 1)
+    XCTAssertLessThan(moved, added.count - 1)
+    navigator.highlightPage(down: false)
+    XCTAssertEqual(navigator.leadSelection, history.firstVisibleItem?.id)
+  }
+
   func testCommandCCopiesTheSelectedItemWithoutPasting() {
     XCTAssertEqual(KeyChord(.c, [.command]), .copySelection)
     XCTAssertEqual(KeyChord(.c, [.command, .shift]), .ignored)

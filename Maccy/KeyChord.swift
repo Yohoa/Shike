@@ -29,6 +29,8 @@ enum KeyChord: CaseIterable {
   case ignored
   case moveToNext
   case moveToLast
+  case pageDown
+  case pageUp
   case moveToPrevious
   case moveToFirst
   case extendToNext
@@ -95,9 +97,10 @@ enum KeyChord: CaseIterable {
          (.n, [.control, .option, .shift]):
       self = AppState.shared.multiSelectionEnabled ? .extendToLast : .moveToLast
     case (.downArrow, _) where modifierFlags.contains(.command) || modifierFlags.contains(.option),
-         (.n, [.control, .option]),
-         (.pageDown, []):
+         (.n, [.control, .option]):
       self = .moveToLast
+    case (.pageDown, []):
+      self = .pageDown
     case (.upArrow, [.shift]),
          (.p, [.control, .shift]):
       self = AppState.shared.multiSelectionEnabled ? .extendToPrevious : .moveToPrevious
@@ -112,9 +115,10 @@ enum KeyChord: CaseIterable {
          (.p, [.control, .option, .shift]):
       self = AppState.shared.multiSelectionEnabled ? .extendToFirst : .moveToFirst
     case (.upArrow, _) where modifierFlags.contains(.command) || modifierFlags.contains(.option),
-         (.p, [.control, .option]),
-         (.pageUp, []):
+         (.p, [.control, .option]):
       self = .moveToFirst
+    case (.pageUp, []):
+      self = .pageUp
     case (KeyChord.pinKey, KeyChord.pinModifiers):
       self = .pinOrUnpin
     case (.comma, [.command]):

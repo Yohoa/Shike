@@ -1,3 +1,4 @@
+import Defaults
 import Foundation
 import SwiftUI
 
@@ -281,6 +282,21 @@ class NavigationManager { // swiftlint:disable:this type_body_length
         highlightFirst()
       }
     }
+  }
+
+  /// Page Up / Page Down: move by about one screenful of rows and stop at the ends of the history list.
+  func highlightPage(down: Bool) {
+    guard let lead = leadSelection,
+          var current = history.firstVisibleItem(where: { $0.id == lead }) else {
+      down ? highlightNext() : highlightPrevious()
+      return
+    }
+    let rows = max(1, Int(Defaults[.windowSize].height / Popup.itemHeight) - 2)
+    for _ in 0..<rows {
+      guard let next = down ? history.visibleItem(after: current) : history.visibleItem(before: current) else { break }
+      current = next
+    }
+    selectFromKeyboardNavigation(item: current)
   }
 
   func highlightLast() {
